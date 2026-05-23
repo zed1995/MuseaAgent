@@ -43,6 +43,14 @@ class IndexingPipeline:
         self._repository.upsert_index_entry(entry)
         return entry
 
+    def commit(self) -> None:
+        """Commit the current session.
+
+        The pipeline defers commits so callers can batch work.  Call this
+        after all photos in a batch are processed to persist the rows.
+        """
+        self._repository.commit()
+
     @property
     def translator(self):
         return self._translator

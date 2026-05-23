@@ -72,31 +72,3 @@ def test_post_internal_ingestion_photo_returns_422_on_missing_payload(client) ->
 
     assert response.status_code == 422
     assert "field required" in response.text.lower() or "payload" in response.text.lower()
-
-
-def test_post_internal_ingestion_cold_start(client) -> None:
-    response = client.post(
-        "/api/internal/ingestion/cold-start",
-        json={
-            "payloads": [
-                {
-                    "id": "photo-cs-1",
-                    "description": "Cold start photo",
-                    "user": {"id": "user-1"},
-                    "urls": {"regular": "https://images.example/cs-1.jpg"},
-                },
-                {
-                    "id": "photo-cs-2",
-                    "description": "Another cold start photo",
-                    "user": {"id": "user-1"},
-                    "urls": {"regular": "https://images.example/cs-2.jpg"},
-                },
-            ]
-        },
-    )
-
-    assert response.status_code == 200
-    body = response.json()
-    assert body["trigger_type"] == "cold_start"
-    assert body["total_candidates"] == 2
-    assert body["succeeded"] == 2

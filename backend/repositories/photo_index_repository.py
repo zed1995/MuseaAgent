@@ -95,6 +95,9 @@ class PhotoIndexRepository:
         for entry in entries:
             self.upsert_index_entry(entry)
 
+    def commit(self) -> None:
+        self._session.commit()
+
     def mark_indexed(self, id: int, indexed_at: datetime) -> None:
         stmt = (
             update(PhotoIndexOrmModel)
