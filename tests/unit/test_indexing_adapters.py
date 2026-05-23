@@ -166,3 +166,5 @@ class MockIndexingSettings:
         self.embedding_timeout_seconds = 10.0
         self.openai_api_key = "sk-test"
         self.openai_base_url = "https://api.openai.com/v1"
+        self.embedding_api_key = ""
+        self.embedding_base_url = ""

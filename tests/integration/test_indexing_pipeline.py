@@ -14,7 +14,11 @@ from backend.services.indexing.translation import Translator
 
 @pytest.fixture
 def settings():
-    return get_settings()
+    s = get_settings()
+    s.indexing.mock_translation = True
+    s.indexing.mock_enrichment = True
+    s.indexing.mock_embedding = True
+    return s
 
 
 class FakeTranslator(Translator):

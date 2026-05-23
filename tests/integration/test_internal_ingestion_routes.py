@@ -27,6 +27,9 @@ def test_pipeline(session):
 @pytest.fixture
 def client(test_pipeline):
     settings = get_settings()
+    settings.indexing.mock_translation = True
+    settings.indexing.mock_enrichment = True
+    settings.indexing.mock_embedding = True
     app = create_app(settings)
 
     async def override_dependency():
