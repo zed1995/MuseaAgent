@@ -37,8 +37,27 @@ class PhotoIndexRepository:
             existing.orientation = entry.orientation
             existing.source_text = entry.source_text
             existing.search_text = entry.search_text
+            existing.ai_caption = entry.ai_caption
+            existing.ai_short_caption = entry.ai_short_caption
+            existing.scene_tags = entry.scene_tags or []
+            existing.mood_tags = entry.mood_tags or []
+            existing.style_tags = entry.style_tags or []
+            existing.composition_tags = entry.composition_tags or []
+            existing.lighting_tags = entry.lighting_tags or []
+            existing.color_tags = entry.color_tags or []
+            existing.subject_tags = entry.subject_tags or []
+            existing.use_case_tags = entry.use_case_tags or []
+            existing.dominant_colors = entry.dominant_colors or []
+            existing.has_human = entry.has_human
+            existing.has_face = entry.has_face
+            existing.is_abstract = entry.is_abstract
+            existing.is_minimal = entry.is_minimal
+            existing.is_dark = entry.is_dark
+            existing.wallpaper_score = entry.wallpaper_score
+            existing.photography_reference_score = entry.photography_reference_score
             existing.embedding = entry.embedding
-            existing.status = entry.status
+            existing.index_status = "indexed"
+            existing.indexed_at = entry.indexed_at
         else:
             row = PhotoIndexOrmModel(
                 id=entry.id,
@@ -49,7 +68,26 @@ class PhotoIndexRepository:
                 source_text=entry.source_text,
                 search_text=entry.search_text,
                 embedding=entry.embedding,
-                status=entry.status,
+                index_status="indexed",
+                ai_caption=entry.ai_caption,
+                ai_short_caption=entry.ai_short_caption,
+                scene_tags=entry.scene_tags or [],
+                mood_tags=entry.mood_tags or [],
+                style_tags=entry.style_tags or [],
+                composition_tags=entry.composition_tags or [],
+                lighting_tags=entry.lighting_tags or [],
+                color_tags=entry.color_tags or [],
+                subject_tags=entry.subject_tags or [],
+                use_case_tags=entry.use_case_tags or [],
+                dominant_colors=entry.dominant_colors or [],
+                has_human=entry.has_human,
+                has_face=entry.has_face,
+                is_abstract=entry.is_abstract,
+                is_minimal=entry.is_minimal,
+                is_dark=entry.is_dark,
+                wallpaper_score=entry.wallpaper_score,
+                photography_reference_score=entry.photography_reference_score,
+                indexed_at=entry.indexed_at,
             )
             self._session.add(row)
 
@@ -61,15 +99,7 @@ class PhotoIndexRepository:
         stmt = (
             update(PhotoIndexOrmModel)
             .where(PhotoIndexOrmModel.id == id)
-            .values(status="indexed", indexed_at=indexed_at)
-        )
-        self._session.execute(stmt)
-
-    def mark_failed(self, id: int, error_message: str) -> None:
-        stmt = (
-            update(PhotoIndexOrmModel)
-            .where(PhotoIndexOrmModel.id == id)
-            .values(status="failed", last_error=error_message)
+            .values(index_status="indexed", indexed_at=indexed_at)
         )
         self._session.execute(stmt)
 
@@ -83,7 +113,25 @@ class PhotoIndexRepository:
             orientation=row.orientation,
             source_text=row.source_text,
             search_text=row.search_text,
-            status=row.status,
-            last_error=row.last_error,
+            index_status=row.index_status,
+            ai_caption=row.ai_caption,
+            ai_short_caption=row.ai_short_caption,
+            scene_tags=row.scene_tags,
+            mood_tags=row.mood_tags,
+            style_tags=row.style_tags,
+            composition_tags=row.composition_tags,
+            lighting_tags=row.lighting_tags,
+            color_tags=row.color_tags,
+            subject_tags=row.subject_tags,
+            use_case_tags=row.use_case_tags,
+            dominant_colors=row.dominant_colors,
+            has_human=row.has_human,
+            has_face=row.has_face,
+            is_abstract=row.is_abstract,
+            is_minimal=row.is_minimal,
+            is_dark=row.is_dark,
+            wallpaper_score=row.wallpaper_score,
+            photography_reference_score=row.photography_reference_score,
+            embedding=row.embedding,
             indexed_at=row.indexed_at,
         )

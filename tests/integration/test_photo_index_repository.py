@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 
 import pytest
 from sqlalchemy import create_engine, text
@@ -44,8 +44,9 @@ def test_photo_index_repository_round_trip(session) -> None:
             orientation="portrait",
             source_text="中文原文",
             search_text="quiet dark portrait wallpaper",
+            ai_caption="A quiet dark portrait wallpaper.",
+            ai_short_caption="Quiet portrait wallpaper",
             embedding=None,
-            status="pending",
         )
     )
     session.commit()
@@ -54,9 +55,10 @@ def test_photo_index_repository_round_trip(session) -> None:
 
     assert record is not None
     assert record.search_text == "quiet dark portrait wallpaper"
+    assert record.index_status == "indexed"
 
 
-def test_photo_index_repository_mark_indexed(session) -> None:
+def test_photo_index_repository_upsert_sets_indexed_status(session) -> None:
     repository = PhotoIndexRepository(session)
     repository.upsert_index_entry(
         PhotoIndexWriteModel(
@@ -66,24 +68,21 @@ def test_photo_index_repository_mark_indexed(session) -> None:
             orientation=None,
             source_text=None,
             search_text="test image",
+            ai_caption="A test image.",
+            ai_short_caption="Test image",
             embedding=None,
-            status="pending",
         )
     )
     session.commit()
 
-    now = datetime.now(timezone.utc)
-    repository.mark_indexed(1002, now)
-    session.commit()
-
     record = repository.get_by_id(1002)
     assert record is not None
-    assert record.status == "indexed"
-    assert record.indexed_at is not None
+    assert record.index_status == "indexed"
 
 
-def test_photo_index_repository_mark_failed(session) -> None:
+def test_photo_index_repository_upsert_with_completed_fields(session) -> None:
     repository = PhotoIndexRepository(session)
+    now = datetime.now(UTC)
     repository.upsert_index_entry(
         PhotoIndexWriteModel(
             id=1003,
@@ -91,20 +90,25 @@ def test_photo_index_repository_mark_failed(session) -> None:
             unsplash_user_id=None,
             orientation=None,
             source_text=None,
-            search_text="failing image",
-            embedding=None,
-            status="pending",
+            search_text="rich image",
+            ai_caption="A rich detailed image with scenic mountains.",
+            ai_short_caption="Scenic mountains",
+            scene_tags=["mountain", "lake"],
+            style_tags=["natural"],
+            mood_tags=["peaceful"],
+            wallpaper_score=0.95,
+            embedding=[0.1] * 1536,
+            indexed_at=now,
         )
     )
     session.commit()
 
-    repository.mark_failed(1003, "connection timeout")
-    session.commit()
-
     record = repository.get_by_id(1003)
     assert record is not None
-    assert record.status == "failed"
-    assert record.last_error == "connection timeout"
+    assert record.index_status == "indexed"
+    assert record.scene_tags == ["mountain", "lake"]
+    assert record.wallpaper_score == 0.95
+    assert record.indexed_at is not None
 
 
 @pytest.mark.usefixtures("clean_test_data")
@@ -118,8 +122,9 @@ def test_unit_of_work_commits_photo_and_search_log_together(session_factory) -> 
                 orientation=None,
                 source_text=None,
                 search_text="minimal wallpaper",
+                ai_caption="A minimal wallpaper.",
+                ai_short_caption="Minimal wallpaper",
                 embedding=None,
-                status="pending",
             )
         )
         uow.search_logs.create(

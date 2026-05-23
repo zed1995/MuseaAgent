@@ -10,8 +10,7 @@ def test_photo_index_record_keeps_persistence_boundary_clean() -> None:
         orientation="portrait",
         source_text="原始文本",
         search_text="calm dark wallpaper",
-        status="indexed",
-        last_error=None,
+        index_status="indexed",
     )
 
     assert record.unsplash_photo_id == "abc"
