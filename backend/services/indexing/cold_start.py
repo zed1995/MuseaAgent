@@ -1,7 +1,11 @@
 """Cold start: import Unsplash dataset photos into the index at app startup."""
 
+import logging
+
 _DATASET_PATH = "data/unsplash-research-dataset-lite-latest/photos.csv000"
-_MAX_ROWS = 5  # bump or set to None after testing
+_MAX_ROWS = 20  # bump or set to None after testing
+
+logger = logging.getLogger(__name__)
 
 
 def run_cold_start() -> None:
@@ -29,6 +33,8 @@ def run_cold_start() -> None:
     pipeline = build_indexing_pipeline(session_factory=sf, settings=settings)
     result = run_cold_start_import(payloads=payloads, pipeline=pipeline)
     pipeline.commit()
-    print(f"[cold-start] imported {result.succeeded}/{result.total_candidates} photos "
-          f"({result.failed} failed)")
+    logger.info(
+        "[cold-start] done: %d/%d indexed (%d failed, %d total)",
+        result.succeeded, result.total_candidates, result.failed, result.total_candidates,
+    )
     engine.dispose()

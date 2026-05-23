@@ -13,22 +13,26 @@ from backend.core.config import Settings, get_settings
 async def _lifespan(app: FastAPI) -> AsyncGenerator[None]:
     from backend.services.indexing.cold_start import run_cold_start
 
-    # run_cold_start()
+    run_cold_start()
     yield
 
 
 def _configure_logging() -> None:
-    retrieval_logger = logging.getLogger("backend.services.retrieval")
-    retrieval_logger.setLevel(logging.INFO)
-    if not retrieval_logger.handlers:
-        handler = logging.StreamHandler(sys.stderr)
-        handler.setLevel(logging.INFO)
-        handler.setFormatter(logging.Formatter(
-            "%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-            datefmt="%H:%M:%S",
-        ))
-        retrieval_logger.addHandler(handler)
-        retrieval_logger.propagate = False
+    handler = logging.StreamHandler(sys.stderr)
+    handler.setFormatter(logging.Formatter(
+        "%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+        datefmt="%H:%M:%S",
+    ))
+
+    for logger_name, level in [
+        ("backend.services.retrieval", logging.INFO),
+        ("backend.services.indexing", logging.INFO),
+    ]:
+        logger = logging.getLogger(logger_name)
+        logger.setLevel(level)
+        if not logger.handlers:
+            logger.addHandler(handler)
+            logger.propagate = False
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:

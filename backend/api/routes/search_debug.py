@@ -62,6 +62,7 @@ def search_debug(
             "results": [
                 {
                     "photo_id": item.unsplash_photo_id,
+                    "unsplash_url": f"https://unsplash.com/photos/{item.unsplash_photo_id}",
                     "orientation": item.orientation,
                     "has_human": item.has_human,
                     "search_text": item.search_text,
