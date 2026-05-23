@@ -16,7 +16,7 @@ class MessageRepository:
             role=entry.role,
             content=entry.content,
             structured_data=entry.structured_data,
-            metadata=entry.metadata,
+            metadata_=entry.metadata,
         )
         self._session.add(row)
         self._session.flush()
