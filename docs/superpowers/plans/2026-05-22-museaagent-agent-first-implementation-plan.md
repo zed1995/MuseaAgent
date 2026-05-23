@@ -4,7 +4,7 @@
 
 **Goal:** Build an agent-first visual search backend that can ingest image metadata, run hybrid retrieval, expose a synchronous agent search interface, and later evolve into a multi-turn chat experience.
 
-**Architecture:** The system is delivered in layers. First establish the backend skeleton and persistence boundaries, then build the retrieval core, then add agent orchestration, then add chat and evaluation on top. The synchronous search entry remains throughout as the stable debugging and benchmarking surface, while chat is treated as the interaction layer above the same pipeline.
+**Architecture:** The system is delivered in layers. First establish the backend skeleton and persistence boundaries, then build the write-side indexing pipeline that produces searchable records, then build the retrieval read core on top of those records, and only after that add agent orchestration, synchronous search, chat, and evaluation. The synchronous search entry remains the stable debugging and benchmarking surface, while chat is treated as the interaction layer above the same pipeline.
 
 **Tech Stack:** Python 3.11+, FastAPI, Pydantic v2, PostgreSQL/pgvector, LangGraph, pytest
 
@@ -80,46 +80,55 @@
 
 ---
 
-### Task 3: Query Normalization and Shared Search Contracts
+### Task 3: Ingestion Pipeline and Index Write Path
 
-**Objective:** Introduce a shared contract for search requests and a first-pass normalization layer that turns user language into retrieval-friendly input.
+**Objective:** Create the write-side pipeline that turns source photo data into durable searchable index records.
 
 **Scope:**
-- Define request and response model boundaries for search
-- Implement a first version of query normalization
-- Support mode resolution and structured constraints at a coarse level
-- Treat Chinese natural-language input as a first-class scenario
+- Implement ingestion orchestration
+- Construct `source_text` from source metadata
+- Translate and normalize `search_text` into English
+- Generate embeddings for indexed records
+- Write and update `photo_index` entries
+- Add internal trigger endpoints for batch ingestion
+- Add a cold-start path for local or offline initialization
 
 **Key decisions to confirm during execution:**
-- How much of normalization should be deterministic rules versus model-assisted
-- Which constraints count as hard constraints in MVP
-- How rewritten queries should be represented for downstream retrieval and debugging
+- What “analysis success” means for write eligibility
+- Which failures are retried and which are skipped
+- How translation quality is observed and debugged during indexing
+- How ingestion progress is tracked and surfaced
 
 **Acceptance criteria:**
-- A single normalized representation can be passed from API to retrieval to agent graph
-- The system can turn a Chinese request into a retrieval-friendly representation
+- New photos can be processed end-to-end into searchable records
+- `photo_index` rows include the fields needed for later retrieval work
+- Failed items do not block whole-batch progress
+- The backend has an operational path for both cold start and incremental growth
 
 ---
 
-### Task 4: Hybrid Retrieval Core
+### Task 4: Hybrid Retrieval Read Core
 
 **Objective:** Build the retrieval foundation that combines semantic search, keyword search, filtering, fusion, and first-pass reranking.
 
 **Scope:**
+- Define request and response model boundaries for retrieval
+- Implement a first version of query normalization
 - Add embedding generation abstraction
 - Implement vector retrieval
 - Implement full-text retrieval
-- Apply structured filters
+- Apply the initial structured filters such as `orientation`
 - Fuse and rerank results
 
 **Key decisions to confirm during execution:**
-- Whether the first embedding implementation is real or stubbed
+- How much of query normalization should be deterministic rules versus model-assisted
+- How rewritten queries should be represented for downstream retrieval and debugging
 - How vector and FTS candidates are merged
 - Which scoring signals are mandatory in MVP
 
 **Acceptance criteria:**
 - Retrieval can be executed independently of chat
-- The service can return ranked results for normalized queries
+- The service can turn a Chinese request into a retrieval-friendly representation and return ranked results
 - The scoring pipeline is explicit enough to support later critic and evaluation work
 
 ---
@@ -166,29 +175,7 @@
 
 ---
 
-### Task 7: Ingestion Pipeline and Internal Triggers
-
-**Objective:** Create the data growth path that enriches incoming photos and writes searchable records.
-
-**Scope:**
-- Implement ingestion orchestration
-- Add metadata enrichment, search text construction, and embedding generation flow
-- Add internal trigger endpoints for batch ingestion
-- Add a cold-start path for local or offline initialization
-
-**Key decisions to confirm during execution:**
-- What “analysis success” means for write eligibility
-- Which failures are retried and which are skipped
-- How ingestion progress is tracked and surfaced
-
-**Acceptance criteria:**
-- New photos can be processed end-to-end into searchable records
-- Failed items do not block whole-batch progress
-- The backend has an operational path for both cold start and incremental growth
-
----
-
-### Task 8: Conversation Layer and Chat Streaming
+### Task 7: Conversation Layer and Chat Streaming
 
 **Objective:** Add the multi-turn interaction layer without changing the underlying retrieval and agent core.
 
@@ -211,7 +198,7 @@
 
 ---
 
-### Task 9: Evaluation and Operational Feedback Loop
+### Task 8: Evaluation and Operational Feedback Loop
 
 **Objective:** Add the minimum evaluation harness needed to compare retrieval and agent behavior over time.
 
@@ -233,17 +220,38 @@
 
 ---
 
+### Task 9: Photographer Discovery and Profile Aggregation
+
+**Objective:** Add the photographer discovery layer after the photo indexing and retrieval foundation is stable.
+
+**Scope:**
+- Add `photographer_profile` storage and aggregation logic
+- Summarize photographer style from indexed photo data
+- Add photographer-oriented search and retrieval entrypoints
+
+**Key decisions to confirm during execution:**
+- How much profile data is derived from indexed photos versus fetched directly
+- Which photographer-oriented retrieval signals are stable enough for MVP
+- How photographer results relate to the existing photo retrieval flow
+
+**Acceptance criteria:**
+- The system can surface photographers as a distinct result type
+- Profile aggregation remains consistent with indexed photo data
+- Photographer discovery does not require reworking the photo retrieval foundation
+
+---
+
 ## Recommended Delivery Order
 
 1. Backend skeleton
 2. Database foundation
-3. Query normalization and search contracts
-4. Hybrid retrieval core
+3. Ingestion pipeline and index write path
+4. Hybrid retrieval read core
 5. Minimum agent graph
 6. Synchronous agent search API
-7. Ingestion pipeline
-8. Conversation layer and chat streaming
-9. Evaluation loop
+7. Conversation layer and chat streaming
+8. Evaluation loop
+9. Photographer discovery
 
 ## Cross-Cutting Review Topics
 

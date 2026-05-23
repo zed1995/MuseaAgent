@@ -106,6 +106,8 @@ Postgres + pgvector，不引入 MongoDB。
 
 ### 4.1 photo_index
 
+说明：下面这份表结构更接近长期目标 schema 候选。实际分阶段落地时，Phase 2/3 会先收敛成“最小检索索引表”，只保留写索引和读索引马上需要的字段，再按后续验证结果扩展语义列。
+
 ```sql
 CREATE TABLE photo_index (
     id BIGSERIAL PRIMARY KEY,
@@ -361,12 +363,14 @@ Authorization: Bearer <INTERNAL_SECRET>
 
 ### 6.1 检索管线
 
+检索读路径建立在先完成的写路径之上。系统先通过 ingestion pipeline 生成英文 `search_text`、`embedding` 和最小结构化字段，再由 retrieval 读取这些索引记录做召回与排序。
+
 ```
 query
   │
   ├→ Embedding → Vector Search（语义相似性）
   ├→ Full-Text Search（关键词匹配，tsvector）
-  └→ Metadata Filter（结构化过滤：has_human, orientation, wallpaper_score...）
+  └→ Metadata Filter（结构化过滤：首版仅保留 orientation 等稳定字段）
       │
       └→ Hybrid Fusion（加权合并/RRF）
            │
@@ -380,7 +384,7 @@ query
 ```text
 原始 query
   → 意图识别（wallpaper / reference / photographer / auto）
-  → 结构化约束提取（color / mood / has_human / orientation / style）
+  → 结构化约束提取（首版尽量收敛，只保留少量稳定硬过滤，如 orientation）
   → 英文检索短语改写（供 FTS 和 query embedding 使用）
 ```
 
@@ -389,11 +393,11 @@ query
 ```text
 我想找深色安静的 OLED 壁纸，不要人物
 → mode: wallpaper
-→ filters: { has_human: false, is_dark: true, orientation: portrait }
+→ filters: { orientation: portrait }
 → rewritten query: dark calm oled wallpaper minimal no people
 ```
 
-这样做的目的不是让 Query Normalization 取代 Agent，而是让第一版在中文输入场景下也能稳定练到 FTS、metadata filter 和 query rewrite 这些真实问题。
+这样做的目的不是让 Query Normalization 取代 Agent，而是让第一版在中文输入场景下也能稳定练到英文 query rewrite、FTS 和最小结构化过滤这些真实问题。
 
 ### 6.2 Vector Search
 
@@ -401,14 +405,10 @@ query
 
 ```sql
 SELECT
-    unsplash_photo_id, ai_caption, mood_tags, style_tags,
-    composition_tags, lighting_tags, color_tags,
-    wallpaper_score, photography_reference_score,
+    id, unsplash_photo_id, orientation,
     1 - (embedding <=> :query_embedding) AS vector_score
 FROM photo_index
-WHERE status = 'done'
-  AND (:min_wallpaper_score IS NULL OR wallpaper_score >= :min_wallpaper_score)
-  AND (:has_human IS NULL OR has_human = :has_human)
+WHERE status = 'indexed'
   AND (:orientation IS NULL OR orientation = :orientation)
 ORDER BY embedding <=> :query_embedding
 LIMIT 100;
@@ -416,13 +416,13 @@ LIMIT 100;
 
 ### 6.3 Full-Text Search
 
-基于 `search_text`（`ai_caption + ' ' + tags` 拼接文本）：
+基于英文 `search_text`（写路径生成的检索专用文本）：
 
 ```sql
 SELECT *, ts_rank(to_tsvector('english', search_text), plainto_tsquery('english', :query)) AS fts_score
 FROM photo_index
 WHERE to_tsvector('english', search_text) @@ plainto_tsquery('english', :query)
-  AND status = 'done'
+  AND status = 'indexed'
   [metadata filters]
 ORDER BY fts_score DESC
 LIMIT 50;
@@ -451,7 +451,7 @@ def rrf_fusion(vector_results, fts_results, k=60):
 ```python
 final_score =
     0.55 * hybrid_score +
-    0.20 * wallpaper_score +
+    0.20 * retrieval_quality_score +
     0.10 * metadata_match_score +
     0.10 * orientation_score +
     0.05 * freshness_score
@@ -550,6 +550,8 @@ Conversation Layer 额外判断新话题还是延续：
 
 复用原始 spec 的 VLM prompt 设计，强调摄影语言（构图、光线、色调、景别）而非通用 object detection。
 
+注意：下面的输出 schema 是“分析层可生成的丰富结构”示例，不代表这些字段都必须在早期阶段直接固化成数据库列。
+
 ### 输出 Schema
 
 ```json
@@ -623,9 +625,9 @@ POST /internal/eval/run
 |-------|---------|
 | 0 | `/health` |
 | 1 | `/health` + `/internal/ingest/trigger` |
-| 2 | + `/api/search/photos`（最小 Agent pipeline，同步 JSON） |
-| 3-4 | + `/api/search/photos`（完整 Agent pipeline + critic/retry） |
-| 5+ | + `/api/chat`（SSE chat 入口），`/api/search/photos` 继续作为调试/评估入口 |
+| 2 | + `/api/search/photos`（最小检索/同步 JSON） |
+| 3 | + `/api/search/photos`（完整 Agent pipeline + critic/retry） |
+| 4+ | + `/api/chat`（SSE chat 入口），`/api/search/photos` 继续作为调试/评估入口 |
 
 ---
 
@@ -729,30 +731,28 @@ musea-server/
 | Phase | Session | 内容 | 交付物 | 验收标准 |
 |-------|---------|------|--------|---------|
 | **0** | 1 | 项目骨架 | pyproject.toml、FastAPI 启动、Supabase 连接、建表、/health | `curl /health` 返回 OK |
-| **1a** | 1 | 冷启动 Ingestion | vision_service + embedding_service + ingestion_service + photo_repository + VLM prompt | 5k+ 张完整记录，每条有 caption/tags/embedding/search_text/tsvector |
+| **1a** | 1 | 冷启动 Ingestion | translation/search-text pipeline + embedding_service + ingestion_service + photo_repository | 5k+ 张索引记录，每条有 source_text/search_text/embedding |
 | **1b** | 1 | 增量 trigger | POST /internal/ingest/trigger + query pool + Unsplash API | trigger 一次新增几张图并入库成功 |
-| **2a** | 1 | 最小 Agent 检索引擎 | query_normalization + retrieval_service：vector + FTS + metadata filter + RRF fusion + 规则 rerank | 单元测试覆盖中文 query 到检索 query 的转换，以及各检索组合 |
-| **2b** | 1 | 同步 Agent API | POST /api/search/photos（走最小 Agent，同步 JSON） | curl 搜"深色壁纸"返回图片列表和 reason |
+| **2a** | 1 | 检索读核心 | query_normalization + retrieval_service：vector + FTS + orientation filter + RRF fusion + 规则 rerank | 单元测试覆盖中文 query 到英文检索 query 的转换，以及各检索组合 |
+| **2b** | 1 | 同步 Agent API | POST /api/search/photos（走最小检索/Agent pipeline，同步 JSON） | curl 搜"深色壁纸"返回图片列表和 reason |
 | **3a** | 1 | Agent 骨架增强 | llm_service、states、intent_node、constraint_extractor_node、query_planner_node + prompts | Agent 能输出结构化 intent、filters、改写 query |
 | **3b** | 1 | 完整 Agent Graph | retrieval_node → rerank_node → critic_node → response_node + graph 组装 | 完整 Agent 流程跑通，支持一次 retry |
-| **4** | 1 | Critic + Retry | critic_node + prompt + 条件路由 | 无结果时自动重试一次 |
-| **5a** | 1 | 对话管理 | conversations/messages 表 + repository + CRUD API | 创建/列表/历史正常 |
-| **5b** | 1 | Chat streaming | SSE 协议 + graph 流式改造 + POST /api/chat | Flutter chat 可交互，并支持约束继承 |
+| **4** | 1 | 对话管理与 Streaming | conversations/messages 表 + repository + CRUD API + SSE chat | Flutter chat 可交互，并支持约束继承 |
+| **5** | 1 | Evaluation | 固定 query set + baseline 对比 + 评分 | 能比较最小检索与完整 Agent 的效果差异 |
 | **6** | 1 | 摄影师发现 | 聚合逻辑 + photographer_profile + 搜索 API | 能搜到摄影师 |
-| **7** | 1 | Evaluation | 固定 query set + baseline 对比 + 评分 | 能比较最小 Agent 与完整 Agent 的效果差异 |
 
 ### 阶段间依赖
 
 ```
 Phase 0 → Phase 1a → Phase 1b
                      ↓
-                   Phase 2a → Phase 2b → Phase 3a → Phase 3b → Phase 4
-                                                                     ↓
-                                                                   Phase 5a → Phase 5b
-                                                                     ↓
-                                                                   Phase 6
-                                                                     ↓
-                                                                   Phase 7
+                   Phase 2a → Phase 2b → Phase 3a → Phase 3b
+                                                         ↓
+                                                       Phase 4
+                                                         ↓
+                                                       Phase 5
+                                                         ↓
+                                                       Phase 6
 ```
 
 每个 session 开始前，前一个阶段必须完成验收。
