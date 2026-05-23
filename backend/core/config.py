@@ -14,6 +14,8 @@ class Settings(BaseSettings):
 
     model_config = SettingsConfigDict(
         env_prefix="MUSEA_AGENT_",
+        env_nested_delimiter="__",
+        env_file=".env",
         extra="ignore",
     )
 

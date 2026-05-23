@@ -76,9 +76,21 @@ Indexes: HNSW on embedding (cosine), GIN on search_text FTS, btree on unsplash_u
 
 ### Configuration
 
-Settings read from env vars prefixed with `MUSEA_AGENT_` via pydantic-settings. Key defaults:
+Settings read from env vars (prefix `MUSEA_AGENT_`) or `.env` file in project root via pydantic-settings. `.env` is gitignored.
+
+Key defaults:
 - `MUSEA_AGENT_DATABASE__URL` → `postgresql+psycopg://postgres:postgres@localhost:5432/musea_agent`
 - `MUSEA_AGENT_ENVIRONMENT` → `development`
+
+Examples:
+
+```bash
+# env var
+export MUSEA_AGENT_DATABASE__URL="postgresql+psycopg://user:pass@host:5432/mydb"
+
+# .env file (project root)
+echo 'MUSEA_AGENT_DATABASE__URL="postgresql+psycopg://user:pass@host:5432/mydb"' > .env
+```
 
 ### Commit workflow
 

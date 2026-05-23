@@ -2,10 +2,13 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
+from backend.core.config import get_settings
+
 
 @pytest.fixture
 def postgres_url() -> str:
-    return "postgresql+psycopg://postgres:postgres@localhost:5432/musea_agent_test"
+    settings = get_settings()
+    return settings.database.url
 
 
 @pytest.fixture
