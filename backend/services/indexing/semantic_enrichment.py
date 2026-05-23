@@ -1,10 +1,31 @@
 import json
+import logging
+import re
 from abc import ABC, abstractmethod
 
 from openai import OpenAI
 
 from backend.services.indexing.contracts import SemanticArtifacts
 from backend.services.indexing.provider_models import SemanticEnrichmentRequest
+
+logger = logging.getLogger(__name__)
+
+_JSON_FENCE_RE = re.compile(r"^```(?:json)?\s*\n?(.*?)\n?```\s*$", re.DOTALL)
+
+
+def _extract_json(raw: str) -> dict:
+    """Parse JSON from a model response, stripping markdown code fences if present."""
+    if not raw or not raw.strip():
+        raise ValueError("empty response from enrichment model")
+
+    stripped = raw.strip()
+
+    # Try to extract from markdown code fence
+    m = _JSON_FENCE_RE.match(stripped)
+    if m:
+        stripped = m.group(1).strip()
+
+    return json.loads(stripped)
 
 _ENRICHMENT_PROMPT = (
     "Analyze this photo and return a JSON object with the following fields:\n"
@@ -82,7 +103,11 @@ class OpenAISemanticEnricher(SemanticEnricher):
             max_tokens=1000,
         )
         raw = response.choices[0].message.content or ""
-        data = json.loads(raw)
+        try:
+            data = _extract_json(raw)
+        except Exception:
+            logger.error("[enrichment] failed to parse response: %s", raw[:500])
+            raise
         return SemanticArtifacts(
             ai_caption=data.get("ai_caption"),
             ai_short_caption=data.get("ai_short_caption"),

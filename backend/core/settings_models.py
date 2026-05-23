@@ -25,3 +25,8 @@ class IndexingSettings(BaseModel):
     # OpenAI / OpenAI-compatible API connection
     openai_api_key: str = ""
     openai_base_url: str = "https://api.openai.com/v1"
+
+    # Separate config for embedding (OpenRouter doesn't offer embeddings,
+    # so this can point to OpenAI API directly while enrichment uses OpenRouter)
+    embedding_api_key: str = ""
+    embedding_base_url: str = ""

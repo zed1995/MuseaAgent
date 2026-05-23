@@ -39,5 +39,7 @@ class OpenAIEmbedder(Embedder):
 def build_embedder(settings) -> Embedder:
     if settings.mock_embedding:
         return StubEmbedder()
-    client = OpenAI(api_key=settings.openai_api_key, base_url=settings.openai_base_url)
+    api_key = settings.embedding_api_key or settings.openai_api_key
+    base_url = settings.embedding_base_url or settings.openai_base_url
+    client = OpenAI(api_key=api_key, base_url=base_url)
     return OpenAIEmbedder(client=client, model=settings.embedding_model)
