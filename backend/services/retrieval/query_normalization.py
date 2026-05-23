@@ -61,7 +61,19 @@ _TERM_KEYS_SORTED: List[str] = sorted(
 
 
 class QueryNormalizationService:
-    """Deterministic, rule-based Chinese-to-English query normalizer."""
+    """Chinese-to-English query normalizer with optional model-backed translation.
+
+    When a ``translator`` callable is provided (e.g. via OpenRouter), queries
+    containing Chinese characters are first translated to English by the model
+    before the deterministic rewrite and filter extraction pass.  Without a
+    translator the service falls back to the deterministic mapping table only.
+    """
+
+    def __init__(
+        self,
+        translator: callable | None = None,  # Callable[[str], str] | None
+    ) -> None:
+        self._translator = translator
 
     def normalize(
         self,
@@ -87,6 +99,19 @@ class QueryNormalizationService:
         NormalizedQuery
         """
         cleaned = self._clean_query(query)
+
+        # Model-backed translation: when Chinese is detected and a translator
+        # is available, translate the full query to English first.  This
+        # handles Chinese terms not covered by the deterministic mapping.
+        has_chinese = bool(re.search(r"[一-鿿]", cleaned))
+        if has_chinese and self._translator is not None:
+            try:
+                translated = self._translator(cleaned)
+                cleaned = self._clean_query(translated)
+            except Exception:
+                # translator failure is non-fatal — fall through to rules
+                pass
+
         extracted_filters = self._extract_filters(cleaned, mode)
 
         # -- Merge with explicit request filters (explicit wins) ----------

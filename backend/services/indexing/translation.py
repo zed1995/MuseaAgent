@@ -5,11 +5,22 @@ from openai import OpenAI
 from backend.services.indexing.provider_models import TranslationRequest, TranslationResponse
 
 _TRANSLATION_PROMPT = (
-    "You are a search-text normalization assistant. "
-    "Transform the following photo description into clean, retrieval-friendly English search text. "
-    "Preserve concrete scene terms, style terms, subject terms, and descriptive constraints "
-    "that would help someone find this photo through search. "
-    "Output only the normalized search text, nothing else.\n\n"
+    "You generate English keyword search text for a photo search engine. "
+    "The keywords will be matched against user search queries via PostgreSQL full-text search, "
+    "so every distinct concept must appear as a separate space-separated keyword.\n\n"
+    "Rules:\n"
+    "- Output 5-15 English keywords only, space-separated, one line.\n"
+    "- Include: subjects, scene type, style, mood, lighting, colors, composition, orientation.\n"
+    "- Include common synonyms and related search terms that a Chinese user might type.\n"
+    "- Use US English spelling.\n"
+    "- Do NOT include: articles (a, an, the), prepositions (of, in, on, at, for, with, to), "
+    "filler verbs (is, are, was, were, has, have, been, being, showing, featuring).\n"
+    "- Do NOT output explanations, labels, or punctuation.\n\n"
+    "Examples:\n"
+    "  Input: A serene beach at sunset with calm waves and golden sky\n"
+    "  Output: beach sunset calm waves golden sky serene ocean shore coastline evening peaceful\n\n"
+    "  Input: Minimalist dark interior with soft lighting and wooden furniture\n"
+    "  Output: dark minimalist interior soft lighting wood furniture cozy calm evening\n\n"
     "Input:\n{analysis_text}\n\n"
     "Output:"
 )
@@ -37,7 +48,7 @@ class OpenAITranslator(Translator):
         response = self._client.chat.completions.create(
             model=self._model,
             messages=[{"role": "user", "content": _TRANSLATION_PROMPT.format(analysis_text=request.analysis_text)}],
-            temperature=0.3,
+            temperature=0,
         )
         raw = response.choices[0].message.content or ""
         return TranslationResponse(search_text=raw.strip()).search_text

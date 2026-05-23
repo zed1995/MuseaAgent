@@ -137,17 +137,30 @@ class PhotoIndexRepository:
         has_human: bool | None,
         limit: int,
     ) -> list[PhotoRetrievalCandidate]:
+        """Full-text search using OR-based term matching.
+
+        Splits query into meaningful terms and builds
+        ``websearch_to_tsquery('term1 OR term2 OR …')`` so that
+        documents matching *any* term are candidates.  ``ts_rank``
+        then gives higher scores to documents matching more terms,
+        achieving both recall and meaningful ranking.
+        """
+        terms = [t for t in query_text.strip().split() if len(t) > 2]
+        if not terms:
+            return []
+
         tsvector = func.to_tsvector("english", PhotoIndexOrmModel.search_text)
-        tsquery = func.plainto_tsquery("english", query_text)
+        tsquery = func.websearch_to_tsquery("english", " OR ".join(terms))
+
+        rank_expr = func.ts_rank(tsvector, tsquery, 32)  # 32 = normalize by doc length
 
         stmt = (
-            select(
-                PhotoIndexOrmModel,
-                func.ts_rank(tsvector, tsquery).label("fts_score"),
-            )
+            select(PhotoIndexOrmModel, rank_expr.label("fts_score"))
             .where(PhotoIndexOrmModel.index_status == "indexed")
             .where(tsquery.isnot(None))
             .where(tsvector.op("@@")(tsquery))
+            .order_by(rank_expr.desc())
+            .limit(limit)
         )
 
         if orientation is not None:
@@ -155,8 +168,6 @@ class PhotoIndexRepository:
 
         if has_human is not None:
             stmt = stmt.where(PhotoIndexOrmModel.has_human == has_human)
-
-        stmt = stmt.order_by(func.ts_rank(tsvector, tsquery).desc()).limit(limit)
 
         rows = self._session.execute(stmt)
         return [self._to_retrieval_candidate(row) for row in rows]
