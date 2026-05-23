@@ -1,9 +1,10 @@
 from datetime import datetime
 
-from sqlalchemy import select, text, update
+from sqlalchemy import func, select, text, update
+from sqlalchemy.engine import Row
 
-from backend.models.photo_index import PhotoIndexOrmModel, VECTOR_DIMENSION
-from backend.repositories.records import PhotoIndexRecord
+from backend.models.photo_index import PhotoIndexOrmModel
+from backend.repositories.records import PhotoIndexRecord, PhotoRetrievalCandidate
 from backend.repositories.write_models import PhotoIndexWriteModel
 
 
@@ -98,6 +99,68 @@ class PhotoIndexRepository:
     def commit(self) -> None:
         self._session.commit()
 
+    def search_vector(
+        self,
+        query_embedding: list[float],
+        orientation: str | None,
+        has_human: bool | None,
+        limit: int,
+    ) -> list[PhotoRetrievalCandidate]:
+        stmt = (
+            select(
+                PhotoIndexOrmModel,
+                PhotoIndexOrmModel.embedding.cosine_distance(query_embedding).label(
+                    "vector_score"
+                ),
+            )
+            .where(PhotoIndexOrmModel.index_status == "indexed")
+            .where(PhotoIndexOrmModel.embedding.isnot(None))
+        )
+
+        if orientation is not None:
+            stmt = stmt.where(PhotoIndexOrmModel.orientation == orientation)
+
+        if has_human is not None:
+            stmt = stmt.where(PhotoIndexOrmModel.has_human == has_human)
+
+        stmt = stmt.order_by(
+            PhotoIndexOrmModel.embedding.cosine_distance(query_embedding)
+        ).limit(limit)
+
+        rows = self._session.execute(stmt)
+        return [self._to_retrieval_candidate(row) for row in rows]
+
+    def search_full_text(
+        self,
+        query_text: str,
+        orientation: str | None,
+        has_human: bool | None,
+        limit: int,
+    ) -> list[PhotoRetrievalCandidate]:
+        tsvector = func.to_tsvector("english", PhotoIndexOrmModel.search_text)
+        tsquery = func.plainto_tsquery("english", query_text)
+
+        stmt = (
+            select(
+                PhotoIndexOrmModel,
+                func.ts_rank(tsvector, tsquery).label("fts_score"),
+            )
+            .where(PhotoIndexOrmModel.index_status == "indexed")
+            .where(tsquery.isnot(None))
+            .where(tsvector.op("@@")(tsquery))
+        )
+
+        if orientation is not None:
+            stmt = stmt.where(PhotoIndexOrmModel.orientation == orientation)
+
+        if has_human is not None:
+            stmt = stmt.where(PhotoIndexOrmModel.has_human == has_human)
+
+        stmt = stmt.order_by(func.ts_rank(tsvector, tsquery).desc()).limit(limit)
+
+        rows = self._session.execute(stmt)
+        return [self._to_retrieval_candidate(row) for row in rows]
+
     def mark_indexed(self, id: int, indexed_at: datetime) -> None:
         stmt = (
             update(PhotoIndexOrmModel)
@@ -137,4 +200,21 @@ class PhotoIndexRepository:
             photography_reference_score=row.photography_reference_score,
             embedding=row.embedding,
             indexed_at=row.indexed_at,
+        )
+
+    @staticmethod
+    def _to_retrieval_candidate(row: Row[tuple[PhotoIndexOrmModel, float]]) -> PhotoRetrievalCandidate:
+        orm = row[0]
+        return PhotoRetrievalCandidate(
+            id=orm.id,
+            unsplash_photo_id=orm.unsplash_photo_id,
+            unsplash_user_id=orm.unsplash_user_id,
+            orientation=orm.orientation,
+            search_text=orm.search_text,
+            ai_caption=orm.ai_caption,
+            has_human=orm.has_human,
+            wallpaper_score=orm.wallpaper_score,
+            photography_reference_score=orm.photography_reference_score,
+            vector_score=getattr(row, "vector_score", 0.0),
+            fts_score=getattr(row, "fts_score", 0.0),
         )

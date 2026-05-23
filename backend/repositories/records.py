@@ -56,6 +56,21 @@ class MessageRecord:
 
 
 @dataclass(slots=True)
+class PhotoRetrievalCandidate:
+    id: int
+    unsplash_photo_id: str
+    unsplash_user_id: str | None
+    orientation: str | None
+    search_text: str
+    ai_caption: str
+    has_human: bool
+    wallpaper_score: float
+    photography_reference_score: float
+    vector_score: float = 0.0
+    fts_score: float = 0.0
+
+
+@dataclass(slots=True)
 class SearchLogRecord:
     id: int
     request_id: str

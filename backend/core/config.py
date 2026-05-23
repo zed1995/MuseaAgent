@@ -2,7 +2,11 @@ from functools import lru_cache
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from backend.core.settings_models import DatabaseSettings, IndexingSettings
+from backend.core.settings_models import (
+    DatabaseSettings,
+    IndexingSettings,
+    RetrievalSettings,
+)
 
 
 class Settings(BaseSettings):
@@ -12,6 +16,7 @@ class Settings(BaseSettings):
     api_prefix: str = "/api"
     database: DatabaseSettings = DatabaseSettings()
     indexing: IndexingSettings = IndexingSettings()
+    retrieval: RetrievalSettings = RetrievalSettings()
 
     model_config = SettingsConfigDict(
         env_prefix="MUSEA_AGENT_",

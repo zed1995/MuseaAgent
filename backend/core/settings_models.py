@@ -6,6 +6,13 @@ class DatabaseSettings(BaseModel):
     echo: bool = False
 
 
+class RetrievalSettings(BaseModel):
+    vector_candidate_limit: int = 100
+    fts_candidate_limit: int = 60
+    fused_candidate_limit: int = 80
+    default_result_limit: int = 20
+
+
 class IndexingSettings(BaseModel):
     # Mock flags — when True, use stub implementations (no real API calls)
     mock_translation: bool = True
