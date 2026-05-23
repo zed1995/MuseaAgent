@@ -1,0 +1,1 @@
+"""Core shared application modules."""
