@@ -9,6 +9,7 @@ def test_health_endpoint_returns_service_status() -> None:
     s.indexing.mock_translation = True
     s.indexing.mock_enrichment = True
     s.indexing.mock_embedding = True
+    s.retrieval.enable_debug_endpoint = False
     client = TestClient(create_app(settings=s))
 
     response = client.get("/api/health")
@@ -18,4 +19,5 @@ def test_health_endpoint_returns_service_status() -> None:
         "status": "ok",
         "service": "MuseaAgent API",
         "environment": "development",
+        "debug_search_enabled": False,
     }

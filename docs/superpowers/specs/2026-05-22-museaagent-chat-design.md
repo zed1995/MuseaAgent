@@ -82,7 +82,7 @@ Unsplash Dataset / Unsplash API
 MuseaAgent 拆成三层：
 
 1. `Core Retrieval Layer`
-   - 负责 query normalization、embedding、FTS、metadata filter、fusion、rerank
+   - 负责 retrieval preparation、embedding、FTS、metadata filter、fusion、rerank
    - 这一层必须可独立调用，作为所有 Agent 行为的基础能力层
 2. `Agent Orchestration Layer`
    - 负责 intent、constraint extraction、query planning、critic、retry、response generation
@@ -377,9 +377,19 @@ query
            └→ Rerank → final result
 ```
 
-### 6.1a Query Normalization
+### 6.1a Retrieval Preparation
 
-用户原始 query 往往是中文自然语言、口语化、带模糊审美词，因此在进入 retrieval 之前，先做一次轻量标准化：
+用户原始 query 往往是中文自然语言、口语化、带模糊审美词，因此在进入 retrieval 之前，需要先做 retrieval preparation。
+
+较新的理想方向是两阶段：
+
+```text
+原始 query
+  → Understanding Pass（结构化理解）
+  → Rewrite Pass（分别生成 embedding / FTS rewrite）
+```
+
+原始一阶段版本可以概括为：
 
 ```text
 原始 query
@@ -397,7 +407,7 @@ query
 → rewritten query: dark calm oled wallpaper minimal no people
 ```
 
-这样做的目的不是让 Query Normalization 取代 Agent，而是让第一版在中文输入场景下也能稳定练到英文 query rewrite、FTS 和最小结构化过滤这些真实问题。
+这样做的目的不是让 retrieval preparation 取代 Agent，而是让第一版在中文输入场景下也能稳定练到英文 query rewrite、FTS 和最小结构化过滤这些真实问题。更理想的实现是把“理解”和“改写”拆成两个 pass，而不是继续停留在单次 normalization。
 
 ### 6.2 Vector Search
 
@@ -669,7 +679,7 @@ musea-server/
       llm_service.py
       vision_service.py
       embedding_service.py
-      query_normalization_service.py
+      retrieval_preparation_service.py
       unsplash_service.py
       retrieval_service.py
       ingestion_service.py
@@ -712,7 +722,7 @@ musea-server/
   tests/
     test_intent_node.py
     test_constraint_extractor.py
-    test_query_normalization.py
+    test_retrieval_preparation.py
     test_retrieval_service.py
     test_rerank.py
     test_graph_flow.py
@@ -733,7 +743,7 @@ musea-server/
 | **0** | 1 | 项目骨架 | pyproject.toml、FastAPI 启动、Supabase 连接、建表、/health | `curl /health` 返回 OK |
 | **1a** | 1 | 冷启动 Ingestion | translation/search-text pipeline + embedding_service + ingestion_service + photo_repository | 5k+ 张索引记录，每条有 source_text/search_text/embedding |
 | **1b** | 1 | 增量 trigger | POST /internal/ingest/trigger + query pool + Unsplash API | trigger 一次新增几张图并入库成功 |
-| **2a** | 1 | 检索读核心 | query_normalization + retrieval_service：vector + FTS + orientation filter + RRF fusion + 规则 rerank | 单元测试覆盖中文 query 到英文检索 query 的转换，以及各检索组合 |
+| **2a** | 1 | 检索读核心 | retrieval_preparation + retrieval_service：vector + FTS + orientation filter + RRF fusion + 规则 rerank | 单元测试覆盖中文 query 到检索准备结果的转换，以及各检索组合 |
 | **2b** | 1 | 同步 Agent API | POST /api/search/photos（走最小检索/Agent pipeline，同步 JSON） | curl 搜"深色壁纸"返回图片列表和 reason |
 | **3a** | 1 | Agent 骨架增强 | llm_service、states、intent_node、constraint_extractor_node、query_planner_node + prompts | Agent 能输出结构化 intent、filters、改写 query |
 | **3b** | 1 | 完整 Agent Graph | retrieval_node → rerank_node → critic_node → response_node + graph 组装 | 完整 Agent 流程跑通，支持一次 retry |

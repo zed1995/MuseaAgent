@@ -7,25 +7,27 @@ before the proper API route is built in a later phase.
 
 import math
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, HTTPException, Query, Request
 from sqlalchemy import create_engine
 
-from backend.core.config import get_settings
+from backend.core.config import Settings
 from backend.services.retrieval.contracts import RetrievalFilters
 from backend.services.retrieval.factory import build_retrieval_service
+from backend.services.retrieval_preparation.service import RetrievalPreparationError
 
 router = APIRouter(tags=["search-debug"])
 
 
 @router.get("/search/debug")
 def search_debug(
+    request: Request,
     query: str = Query(..., description="Chinese or English search query"),
     mode: str = Query("auto", description="wallpaper | reference | auto"),
-    limit: int = Query(10, ge=1, le=100),
+    limit: int = Query(5, ge=1, le=100),
     has_human: bool | None = Query(None, description="Filter: has_human"),
     orientation: str | None = Query(None, description="Filter: portrait | landscape | squarish"),
 ):
-    settings = get_settings()
+    settings: Settings = request.app.state.settings
     engine = create_engine(settings.database.url)
     session = engine.connect()
 
@@ -39,7 +41,10 @@ def search_debug(
         )
 
         filters = RetrievalFilters(orientation=orientation, has_human=has_human)
-        response = service.retrieve(query=query, mode=mode, limit=limit, filters=filters)
+        try:
+            response = service.retrieve(query=query, mode=mode, limit=limit, filters=filters)
+        except RetrievalPreparationError as exc:
+            raise HTTPException(status_code=502, detail=str(exc)) from exc
 
         return {
             "query": query,

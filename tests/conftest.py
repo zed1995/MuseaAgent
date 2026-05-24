@@ -1,6 +1,7 @@
 import pytest
 from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.exc import OperationalError
 
 from backend.core.config import get_settings
 
@@ -25,7 +26,11 @@ def session(postgres_url):
     is rolled back after the test regardless, leaving the database clean.
     """
     engine = create_engine(postgres_url)
-    connection = engine.connect()
+    try:
+        connection = engine.connect()
+    except OperationalError as exc:
+        engine.dispose()
+        pytest.skip(f"postgres unavailable for integration test: {exc}")
     transaction = connection.begin()
     session = sessionmaker(bind=connection, autoflush=False, autocommit=False, future=True)()
 

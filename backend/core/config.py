@@ -5,6 +5,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 from backend.core.settings_models import (
     DatabaseSettings,
     IndexingSettings,
+    RetrievalPreparationSettings,
     RetrievalSettings,
 )
 
@@ -17,6 +18,7 @@ class Settings(BaseSettings):
     database: DatabaseSettings = DatabaseSettings()
     indexing: IndexingSettings = IndexingSettings()
     retrieval: RetrievalSettings = RetrievalSettings()
+    retrieval_preparation: RetrievalPreparationSettings = RetrievalPreparationSettings()
 
     model_config = SettingsConfigDict(
         env_prefix="MUSEA_AGENT_",

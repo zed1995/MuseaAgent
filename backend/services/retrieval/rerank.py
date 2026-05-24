@@ -24,29 +24,39 @@ class RankedRetrievalItem:
     score_breakdown: RetrievalScoreBreakdown
 
 
-def _compute_normalization_alignment(
-    soft_signals: dict[str, bool | float | str],
+def _normalize_terms(values: list[str]) -> list[str]:
+    result: list[str] = []
+    for value in values:
+        lowered = value.lower().strip()
+        if len(lowered) <= 2 or lowered in _WORDS_TO_SKIP or lowered in result:
+            continue
+        result.append(lowered)
+    return result
+
+
+def _compute_alignment_scores(
+    soft_signals: dict[str, list[str]],
     search_text: str,
     ai_caption: str,
-) -> float:
-    """Small bonus when soft signal keywords appear in the candidate text."""
-    score = 0.0
+) -> tuple[float, float]:
     combined_text = (search_text + " " + ai_caption).lower()
+    explicit_terms = _normalize_terms(soft_signals.get("user_explicit_terms", []))
+    supporting_terms = _normalize_terms(soft_signals.get("supporting_terms", []))
 
-    for key, value in soft_signals.items():
-        if not value:
-            continue
-        words = [
-            w
-            for w in key.lower().split("_")
-            if len(w) > 2 and w not in _WORDS_TO_SKIP
-        ]
-        for word in words:
-            if word in combined_text:
-                score += 0.1
-                break
+    explicit_matches = sum(1 for term in explicit_terms if term in combined_text)
+    supporting_matches = sum(1 for term in supporting_terms if term in combined_text)
 
-    return min(score, 0.2)
+    explicit_score = (
+        explicit_matches / len(explicit_terms)
+        if explicit_terms
+        else 0.0
+    )
+    supporting_score = (
+        supporting_matches / len(supporting_terms)
+        if supporting_terms
+        else 0.0
+    )
+    return explicit_score, supporting_score
 
 
 class RetrievalReranker:
@@ -64,7 +74,7 @@ class RetrievalReranker:
         candidates: list[FusedRetrievalCandidate],
         mode: str,
         filters: RetrievalFilters,
-        soft_signals: dict[str, bool | float | str],
+        soft_signals: dict[str, list[str]],
         limit: int,
     ) -> list[RankedRetrievalItem]:
         """Rerank fused candidates using deterministic scoring.
@@ -105,17 +115,18 @@ class RetrievalReranker:
                     c.wallpaper_score, c.photography_reference_score
                 )
 
-            # --- normalization_alignment_score (0.0 - 0.2) ---
-            alignment_score = _compute_normalization_alignment(
+            # --- explicit/supporting alignment scores (0.0 - 1.0) ---
+            explicit_alignment_score, supporting_alignment_score = _compute_alignment_scores(
                 soft_signals, c.search_text, c.ai_caption
             )
 
             # --- final_score ---
             final_score = (
-                0.55 * c.hybrid_score
+                0.50 * c.hybrid_score
                 + 0.20 * use_case_score
                 + 0.15 * metadata_score
-                + 0.10 * alignment_score
+                + 0.10 * explicit_alignment_score
+                + 0.05 * supporting_alignment_score
             )
 
             breakdown = RetrievalScoreBreakdown(
@@ -124,6 +135,8 @@ class RetrievalReranker:
                 hybrid_score=c.hybrid_score,
                 metadata_match_score=metadata_score,
                 use_case_score=use_case_score,
+                explicit_term_match_score=explicit_alignment_score,
+                supporting_term_match_score=supporting_alignment_score,
                 final_score=final_score,
             )
 

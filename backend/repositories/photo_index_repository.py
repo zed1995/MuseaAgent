@@ -109,7 +109,7 @@ class PhotoIndexRepository:
         stmt = (
             select(
                 PhotoIndexOrmModel,
-                PhotoIndexOrmModel.embedding.cosine_distance(query_embedding).label(
+                (1 - PhotoIndexOrmModel.embedding.cosine_distance(query_embedding)).label(
                     "vector_score"
                 ),
             )

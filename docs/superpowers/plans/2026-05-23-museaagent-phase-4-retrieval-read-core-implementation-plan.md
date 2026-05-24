@@ -2,9 +2,11 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Build the Phase 4 retrieval read core that can normalize Chinese photo-search requests, run vector and full-text recall over Phase 3 indexed records, fuse candidates, and return deterministic ranked results with score breakdowns.
+**Goal:** Build the Phase 4 retrieval read core that can prepare Chinese photo-search requests, run vector and full-text recall over Phase 3 indexed records, fuse candidates, and return deterministic ranked results with score breakdowns.
 
-**Architecture:** This phase builds the retrieval core from the inside out. First define retrieval-facing contracts, then add repository-level read primitives for vector and FTS candidate recall, then implement query normalization, then add fusion and rerank, and finally assemble a standalone retrieval service with integration tests. API routes, agent graph nodes, and chat behavior remain outside this phase.
+**Architecture:** This phase builds the retrieval core from the inside out. First define retrieval-facing contracts, then add repository-level read primitives for vector and FTS candidate recall, then implement the retrieval front door, then add fusion and rerank, and finally assemble a standalone retrieval service with integration tests. API routes, agent graph nodes, and chat behavior remain outside this phase.
+
+> Note: the one-step `query_normalization` approach described below is the original Phase 4 plan. The newer two-pass retrieval-preparation plan in [2026-05-24-museaagent-retrieval-preparation-implementation-plan.md](/Users/zed/Codes/MuseaAgent/docs/superpowers/plans/2026-05-24-museaagent-retrieval-preparation-implementation-plan.md) supersedes that approach.
 
 **Tech Stack:** Python 3.14, Pydantic v2, SQLAlchemy 2.x, PostgreSQL/pgvector, pytest
 

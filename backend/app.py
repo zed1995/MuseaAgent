@@ -13,7 +13,7 @@ from backend.core.config import Settings, get_settings
 async def _lifespan(app: FastAPI) -> AsyncGenerator[None]:
     from backend.services.indexing.cold_start import run_cold_start
 
-    run_cold_start()
+    # run_cold_start()
     yield
 
 
@@ -45,4 +45,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     )
     app.state.settings = app_settings
     app.include_router(api_router, prefix=app_settings.api_prefix)
+    if app_settings.retrieval.enable_debug_endpoint:
+        from backend.api.routes.search_debug import router as search_debug_router
+
+        app.include_router(search_debug_router, prefix=app_settings.api_prefix)
     return app

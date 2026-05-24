@@ -30,3 +30,6 @@ packages = ["backend"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
+markers = [
+    "postgres: requires PostgreSQL with pgvector",
+]

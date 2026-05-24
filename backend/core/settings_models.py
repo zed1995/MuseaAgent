@@ -11,6 +11,15 @@ class RetrievalSettings(BaseModel):
     fts_candidate_limit: int = 60
     fused_candidate_limit: int = 80
     default_result_limit: int = 20
+    enable_debug_endpoint: bool = False
+
+
+class RetrievalPreparationSettings(BaseModel):
+    enabled: bool = True
+    understanding_model: str = "google/gemini-2.5-flash-lite"
+    rewrite_model: str = "google/gemini-2.5-flash-lite"
+    use_model_understanding: bool = True
+    use_model_rewrite: bool = True
 
 
 class IndexingSettings(BaseModel):

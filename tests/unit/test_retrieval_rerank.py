@@ -121,3 +121,54 @@ def test_rerank_has_score_breakdown() -> None:
     assert ranked[0].score_breakdown.vector_score == 0.8
     assert ranked[0].score_breakdown.fts_score == 0.6
     assert ranked[0].score_breakdown.final_score > 0
+
+
+def test_rerank_prefers_candidates_matching_more_user_explicit_terms() -> None:
+    reranker = RetrievalReranker()
+    candidates = [
+        FusedRetrievalCandidate(
+            id=1,
+            unsplash_photo_id="beach-sunset",
+            unsplash_user_id=None,
+            orientation="landscape",
+            search_text="beach sunset ocean golden sky",
+            ai_caption="A beach sunset scene.",
+            has_human=False,
+            wallpaper_score=0.6,
+            photography_reference_score=0.3,
+            vector_score=0.6,
+            fts_score=0.01,
+            hybrid_score=0.02,
+        ),
+        FusedRetrievalCandidate(
+            id=2,
+            unsplash_photo_id="beach-only",
+            unsplash_user_id=None,
+            orientation="landscape",
+            search_text="beach ocean shore calm",
+            ai_caption="A calm beach scene.",
+            has_human=False,
+            wallpaper_score=0.6,
+            photography_reference_score=0.3,
+            vector_score=0.6,
+            fts_score=0.01,
+            hybrid_score=0.02,
+        ),
+    ]
+
+    ranked = reranker.rank(
+        candidates=candidates,
+        mode="auto",
+        filters=RetrievalFilters(),
+        soft_signals={
+            "user_explicit_terms": ["beach", "sunset"],
+            "supporting_terms": ["calm", "golden"],
+        },
+        limit=5,
+    )
+
+    assert ranked[0].unsplash_photo_id == "beach-sunset"
+    assert (
+        ranked[0].score_breakdown.explicit_term_match_score
+        > ranked[1].score_breakdown.explicit_term_match_score
+    )

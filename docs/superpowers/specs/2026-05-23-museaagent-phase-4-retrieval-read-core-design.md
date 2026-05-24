@@ -13,7 +13,7 @@ This phase is about making retrieval a stable application service before agent o
 The outcome of Phase 4 should be:
 
 - a clear retrieval request contract
-- a query normalization contract for Chinese natural-language requests
+- a retrieval preparation contract for Chinese natural-language requests
 - independent vector and full-text recall paths
 - a minimal hard-filter contract
 - deterministic fusion and rerank behavior
@@ -30,7 +30,7 @@ Phase 4 is the first point where MuseaAgent can answer the question:
 Phase 4 covers:
 
 - application-facing retrieval request and response contracts
-- lightweight query normalization for photo retrieval
+- retrieval-facing query preparation for photo retrieval
 - vector recall from `photo_index.embedding`
 - English FTS recall from `photo_index.search_text`
 - minimal hard filters for retrieval-time narrowing
@@ -44,7 +44,7 @@ Phase 4 does not cover:
 
 - HTTP route design for `/api/search/photos`
 - LangGraph node orchestration
-- intent classification beyond what retrieval normalization needs
+- intent classification beyond what retrieval preparation needs
 - multi-turn conversation state
 - SSE streaming
 - critic or retry policy
@@ -97,15 +97,17 @@ The read path assumes the Phase 3 write path already produced:
 - embeddings
 - stable structured fields
 
-Phase 4 therefore normalizes the user request into an English retrieval representation before vector or FTS execution.
+Phase 4 therefore prepares the user request into an English retrieval representation before vector or FTS execution.
 
-### 3.4 Deterministic Before Model-Heavy
+### 3.4 Preparation Is a Dedicated Layer
 
-The retrieval core should stay mostly deterministic in this phase.
+The retrieval core should treat request preparation as a first-class boundary rather than an ad hoc helper.
 
 That means:
 
-- rule-based normalization before model-assisted normalization
+- structured request understanding
+- rewrite generation for embedding and FTS
+- deterministic fallback behavior
 - deterministic fusion
 - deterministic rerank
 - deterministic score breakdowns
@@ -129,7 +131,7 @@ Traceability is not an implementation detail. It is part of the Phase 4 contract
 
 Phase 4 introduces a dedicated retrieval layer with four units:
 
-1. `Query normalization`
+1. `Retrieval preparation`
 2. `Candidate recall`
 3. `Fusion`
 4. `Deterministic rerank`
@@ -243,18 +245,20 @@ This trace is meant for service consumers and logs, not for direct end-user disp
 
 ---
 
-## 7. Query Normalization Design
+## 7. Retrieval Preparation Design
 
-### 7.1 Normalization Objective
+> Note: the original one-step normalization direction in this section has been superseded by the newer two-pass design in [2026-05-24-museaagent-retrieval-preparation-design.md](/Users/zed/Codes/MuseaAgent/docs/superpowers/specs/2026-05-24-museaagent-retrieval-preparation-design.md).
 
-Phase 4 normalization is not full intent understanding. Its only job is to produce a retrieval-friendly representation.
+### 7.1 Preparation Objective
+
+Phase 4 preparation is not full intent understanding. Its job is to produce a retrieval-friendly representation for retrieval execution.
 
 It should transform a user query into:
 
-- one normalized English query string
-- a compact set of rewritten retrieval terms
-- zero or more supported hard filters
-- zero or more soft preference hints for rerank
+- supported hard filters
+- soft preference hints for rerank
+- retrieval-friendly English rewrites
+- traceable preparation outputs for downstream recall
 
 ### 7.2 Input Assumptions
 
@@ -271,14 +275,15 @@ Examples:
 - `找一点电影感的城市夜景参考图`
 - `适合手机锁屏的极简山景`
 
-### 7.3 Normalization Output
+### 7.3 Preparation Output
 
-The normalizer should produce a structure with:
+The preparation layer should produce a structure with:
 
-- `normalized_query_text`
-- `rewritten_terms`
-- `filters`
-- `soft_signals`
+- retrieval filters
+- preparation notes
+- embedding-friendly rewrite
+- FTS-friendly rewrite
+- soft signals for rerank
 
 Example:
 
@@ -293,7 +298,7 @@ filters = {"orientation": "portrait", "has_human": false}
 soft_signals = {"prefer_dark": true, "prefer_minimal": true}
 ```
 
-### 7.4 Normalization Rules
+### 7.4 Preparation Rules
 
 Phase 4 should prefer explicit deterministic rules for:
 
@@ -302,11 +307,11 @@ Phase 4 should prefer explicit deterministic rules for:
 - extracting `不要人物` into `has_human=False`
 - inferring `portrait` for mobile-wallpaper phrasing such as `手机壁纸`, `锁屏`, `竖屏`
 
-The normalizer may use a model-backed adapter later, but the Phase 4 contract must not require a model call in the default path.
+The original Phase 4 direction assumed mostly deterministic behavior. The newer retrieval-preparation design upgrades this into explicit understanding and rewrite stages with deterministic fallback.
 
-### 7.5 Normalization Non-Goals
+### 7.5 Preparation Non-Goals
 
-The normalizer should not:
+The preparation layer should not:
 
 - classify deep user intent
 - create 2-5 exploratory queries
@@ -416,7 +421,7 @@ Rerank consumes:
 - fused hybrid candidates
 - applied hard filters
 - retrieval `mode`
-- normalization soft signals
+- preparation soft signals
 
 ### 10.3 Score Layers
 
@@ -462,7 +467,7 @@ final_score =
   0.10 * normalization_alignment_score
 ```
 
-`normalization_alignment_score` is the only place where soft preferences such as `dark`, `minimal`, or `calm` may have small influence through indexed tags or search-text term presence.
+`normalization_alignment_score` is the place where preparation-derived soft preferences such as `dark`, `minimal`, or `calm` may have small influence through indexed tags or search-text term presence.
 
 The exact coefficients may be tuned during implementation, but the design constraint is:
 
@@ -477,9 +482,9 @@ The exact coefficients may be tuned during implementation, but the design constr
 
 ### 11.1 Normalization Failure
 
-If normalization cannot extract supported filters, retrieval should proceed without those filters rather than fail the request.
+If preparation cannot extract supported filters, retrieval should proceed without those filters rather than fail the request.
 
-If normalization cannot produce a strong rewrite, it should fall back to a cleaned English-translated query string.
+If preparation cannot produce strong rewrites, it should fall back through deterministic preparation behavior rather than fail the whole request.
 
 ### 11.2 Vector Path Failure
 
@@ -537,7 +542,7 @@ Phase 4 requires three levels of tests.
 
 Unit tests should cover:
 
-- normalization rule behavior for representative Chinese inputs
+- preparation behavior for representative Chinese inputs
 - hard-filter extraction
 - RRF fusion correctness
 - deterministic rerank score ordering

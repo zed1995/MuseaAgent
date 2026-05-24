@@ -1,14 +1,13 @@
 import logging
-import math
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
-from backend.services.retrieval.contracts import NormalizedQuery, RetrievalFilters, RetrievalRequest
+from backend.services.retrieval.contracts import RetrievalFilters
 from backend.services.retrieval.fusion import FusedRetrievalCandidate, reciprocal_rank_fusion
-from backend.services.retrieval.query_normalization import QueryNormalizationService
 from backend.services.retrieval.rerank import RankedRetrievalItem, RetrievalReranker
 from backend.repositories.photo_index_repository import PhotoIndexRepository
 from backend.schemas.search import RetrievalScoreBreakdown, RetrievalTrace
 from backend.core.settings_models import RetrievalSettings
+from backend.services.retrieval_preparation.contracts import PreparedRetrievalRequest
 
 logger = logging.getLogger(__name__)
 
@@ -44,13 +43,13 @@ class RetrievalService:
     def __init__(
         self,
         repository: PhotoIndexRepository,
-        normalizer: QueryNormalizationService,
+        preparation_service,
         embedder: callable,  # Callable[[str], list[float]]
         reranker: RetrievalReranker,
         settings: RetrievalSettings,
     ) -> None:
         self._repository = repository
-        self._normalizer = normalizer
+        self._preparation_service = preparation_service
         self._embedder = embedder
         self._reranker = reranker
         self._settings = settings
@@ -66,47 +65,38 @@ class RetrievalService:
         logger.info("[retrieval] request: query=%r mode=%s limit=%d filters=%s", query, mode, limit, filters)
 
         # 1. Normalize
-        normalized = self._normalizer.normalize(query, mode, filters)
+        prepared = self._preparation_service.prepare(query, mode, filters)
+        hard_filters = RetrievalFilters(
+            orientation=prepared.understanding.hard_filters.orientation,
+            has_human=prepared.understanding.hard_filters.has_human,
+        )
         logger.info(
-            "[normalize] input=%r output=%r terms=%s filters=(orientation=%s has_human=%s)",
+            "[prepare] input=%r embedding=%r fts=%r filters=(orientation=%s has_human=%s)",
             query,
-            normalized.normalized_query_text,
-            normalized.rewritten_terms,
-            normalized.filters.orientation,
-            normalized.filters.has_human,
+            prepared.rewrite.rewrite_for_embedding,
+            prepared.rewrite.rewrite_for_fts,
+            hard_filters.orientation,
+            hard_filters.has_human,
         )
 
         # 2. Vector path (with error isolation)
         vector_candidates: list = []
         vector_failed = False
         try:
-            embedding = self._embedder(normalized.normalized_query_text)
+            embedding = self._embedder(prepared.rewrite.rewrite_for_embedding)
             v_limit = self._settings.vector_candidate_limit
             vector_candidates = self._repository.search_vector(
                 query_embedding=embedding,
-                orientation=normalized.filters.orientation,
-                has_human=normalized.filters.has_human,
+                orientation=hard_filters.orientation,
+                has_human=hard_filters.has_human,
                 limit=v_limit,
             )
-            # Treat all-NaN / all-zero scores as a failed vector path
-            # (e.g. when a mock embedder returns a zero embedding).
-            has_real_scores = any(
-                hasattr(c, "vector_score")
-                and not math.isnan(c.vector_score)
-                and c.vector_score != 0.0
-                for c in vector_candidates
+            logger.info(
+                "[vector] embed=%s… limit=%s candidates=%d",
+                str(embedding[:3]),
+                v_limit,
+                len(vector_candidates),
             )
-            if not has_real_scores:
-                logger.info("[vector] all scores are zero/NaN — treating as failed path")
-                vector_failed = True
-                vector_candidates = []
-            else:
-                logger.info(
-                    "[vector] embed=%s… limit=%s candidates=%d",
-                    str(embedding[:3]),
-                    v_limit,
-                    len(vector_candidates),
-                )
         except Exception as exc:
             vector_failed = True
             logger.warning("[vector] failed: %s: %s", type(exc).__name__, exc)
@@ -117,18 +107,18 @@ class RetrievalService:
         try:
             f_limit = self._settings.fts_candidate_limit
             fts_candidates = self._repository.search_full_text(
-                query_text=normalized.normalized_query_text,
-                orientation=normalized.filters.orientation,
-                has_human=normalized.filters.has_human,
+                query_text=prepared.rewrite.rewrite_for_fts,
+                orientation=hard_filters.orientation,
+                has_human=hard_filters.has_human,
                 limit=f_limit,
             )
             logger.info(
                 "[fts] query=%r limit=%s candidates=%d (filters: orientation=%s has_human=%s)",
-                normalized.normalized_query_text,
+                prepared.rewrite.rewrite_for_fts,
                 f_limit,
                 len(fts_candidates),
-                normalized.filters.orientation,
-                normalized.filters.has_human,
+                hard_filters.orientation,
+                hard_filters.has_human,
             )
         except Exception as exc:
             fts_failed = True
@@ -158,8 +148,8 @@ class RetrievalService:
         ranked = self._reranker.rank(
             candidates=fused,
             mode=mode,
-            filters=normalized.filters,
-            soft_signals=normalized.soft_signals,
+            filters=hard_filters,
+            soft_signals=self._soft_signals(prepared),
             limit=final_limit,
         )
         logger.info(
@@ -173,14 +163,14 @@ class RetrievalService:
 
         # 7. Build response
         return self._build_response(
-            query, normalized, ranked, vector_candidates, fts_candidates, fused,
+            query, prepared, ranked, vector_candidates, fts_candidates, fused,
             vector_failed, fts_failed, debug,
         )
 
     def _build_response(
         self,
         original_query: str,
-        normalized: NormalizedQuery,
+        prepared: PreparedRetrievalRequest,
         ranked: list[RankedRetrievalItem],
         vector_candidates: list,
         fts_candidates: list,
@@ -213,10 +203,20 @@ class RetrievalService:
 
         trace = RetrievalTrace(
             original_query=original_query,
-            normalized_query_text=normalized.normalized_query_text,
-            normalization_notes=normalized.normalization_notes,
-            rewritten_terms=normalized.rewritten_terms,
-            applied_filters=normalized.filters,
+            normalized_query_text=prepared.rewrite.rewrite_for_fts,
+            normalization_notes=prepared.understanding.understanding_notes,
+            rewritten_terms=prepared.rewrite.lexical_terms,
+            applied_filters=RetrievalFilters(
+                orientation=prepared.understanding.hard_filters.orientation,
+                has_human=prepared.understanding.hard_filters.has_human,
+            ),
+            understanding_notes=prepared.understanding.understanding_notes,
+            rewrite_notes=prepared.rewrite.rewrite_notes,
+            rewrite_for_embedding=prepared.rewrite.rewrite_for_embedding,
+            rewrite_for_fts=prepared.rewrite.rewrite_for_fts,
+            user_explicit_terms=prepared.rewrite.user_explicit_terms,
+            expansion_terms=prepared.rewrite.expansion_terms,
+            fallback_path=self._fallback_path(prepared),
             vector_candidate_count=len(vector_candidates),
             fts_candidate_count=len(fts_candidates),
             fused_candidate_count=len(fused),
@@ -224,9 +224,43 @@ class RetrievalService:
         )
 
         return RetrievalResponse(
-            normalized_query=normalized.normalized_query_text,
-            applied_filters=normalized.filters,
+            normalized_query=prepared.rewrite.rewrite_for_fts,
+            applied_filters=RetrievalFilters(
+                orientation=prepared.understanding.hard_filters.orientation,
+                has_human=prepared.understanding.hard_filters.has_human,
+            ),
             candidates_considered=len(fused),
             items=items,
             trace=trace,
         )
+
+    def _soft_signals(
+        self,
+        prepared: PreparedRetrievalRequest,
+    ) -> dict[str, list[str]]:
+        preferences = prepared.understanding.soft_preferences
+        supporting_terms: list[str] = []
+        for values in (
+            prepared.rewrite.expansion_terms,
+            preferences.moods,
+            preferences.styles,
+            preferences.scenes,
+            preferences.subjects,
+            preferences.colors,
+            preferences.qualities,
+        ):
+            for value in values:
+                if value not in supporting_terms and value not in prepared.rewrite.user_explicit_terms:
+                    supporting_terms.append(value)
+        return {
+            "user_explicit_terms": prepared.rewrite.user_explicit_terms,
+            "supporting_terms": supporting_terms,
+        }
+
+    def _fallback_path(self, prepared: PreparedRetrievalRequest) -> str | None:
+        notes = set(prepared.understanding.understanding_notes + prepared.rewrite.rewrite_notes)
+        if "understanding fallback used" in notes:
+            return "full"
+        if "rewrite fallback used" in notes:
+            return "rewrite"
+        return None

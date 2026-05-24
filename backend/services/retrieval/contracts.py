@@ -8,15 +8,6 @@ class RetrievalFilters(BaseModel):
     has_human: bool | None = None
 
 
-class NormalizedQuery(BaseModel):
-    original_query: str
-    normalized_query_text: str
-    rewritten_terms: list[str]
-    filters: RetrievalFilters
-    soft_signals: dict[str, bool | float | str]
-    normalization_notes: list[str]
-
-
 class RetrievalRequest(BaseModel):
     query: str
     mode: Literal["wallpaper", "reference", "auto"] = "auto"

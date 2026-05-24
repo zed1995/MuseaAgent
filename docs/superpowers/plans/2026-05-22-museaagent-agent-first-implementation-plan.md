@@ -26,7 +26,7 @@
   - Owns database access and storage concerns
   - Hides SQL and storage details from the rest of the system
 - `Retrieval core`
-  - Owns query normalization, embeddings, hybrid retrieval, fusion, and rerank
+  - Owns retrieval preparation, embeddings, hybrid retrieval, fusion, and rerank
   - Must be callable independently from chat
 - `Agent orchestration layer`
   - Owns intent understanding, constraint extraction, query planning, critic, retry, and response composition
@@ -113,7 +113,7 @@
 
 **Scope:**
 - Define request and response model boundaries for retrieval
-- Implement a first version of query normalization
+- Implement a first version of retrieval preparation
 - Add embedding generation abstraction
 - Implement vector retrieval
 - Implement full-text retrieval
@@ -121,7 +121,7 @@
 - Fuse and rerank results
 
 **Key decisions to confirm during execution:**
-- How much of query normalization should be deterministic rules versus model-assisted
+- How much of retrieval preparation should be deterministic rules versus model-assisted
 - How rewritten queries should be represented for downstream retrieval and debugging
 - How vector and FTS candidates are merged
 - Which scoring signals are mandatory in MVP
