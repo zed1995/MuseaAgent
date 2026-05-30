@@ -53,6 +53,9 @@ def test_search_debug_endpoint_can_be_enabled_without_real_services(monkeypatch)
                     fts_candidate_count=1,
                     fused_candidate_count=1,
                     dropped_candidate_reasons=[],
+                    representation_bundle_used=True,
+                    fts_document_version="multi_field_weighted_v1",
+                    rerank_features_used=["structured_phase_3_signals"],
                 ),
             )
 
@@ -83,6 +86,7 @@ def test_search_debug_endpoint_can_be_enabled_without_real_services(monkeypatch)
 
     assert response.status_code == 200
     assert response.json()["normalized_query"] == "dark wallpaper"
+    assert response.json()["representation"]["bundle_used"] is True
     assert captured["limit"] == 5
 
 
@@ -125,6 +129,9 @@ def test_search_debug_endpoint_passes_through_explicit_limit(monkeypatch) -> Non
                     fts_candidate_count=1,
                     fused_candidate_count=1,
                     dropped_candidate_reasons=[],
+                    representation_bundle_used=True,
+                    fts_document_version="multi_field_weighted_v1",
+                    rerank_features_used=["structured_phase_3_signals"],
                 ),
             )
 

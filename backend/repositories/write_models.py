@@ -12,6 +12,10 @@ class PhotoIndexWriteModel:
     search_text: str
     ai_caption: str
     ai_short_caption: str
+    retrieval_caption_text: str = ""
+    retrieval_tag_text: str = ""
+    retrieval_document_text: str = ""
+    embedding_text: str = ""
     scene_tags: list[str] | None = None
     mood_tags: list[str] | None = None
     style_tags: list[str] | None = None
@@ -55,3 +59,10 @@ class SearchLogWriteModel:
     request_id: str
     user_id: str | None
     query: str
+    intent: dict | None = None
+    rewritten_queries: dict | None = None
+    filters: dict | None = None
+    retrieved_photo_ids: dict | None = None
+    reranked_photo_ids: dict | None = None
+    latency_ms: int | None = None
+    result_count: int | None = None

@@ -64,6 +64,11 @@ def search_debug(
                 "fts": response.trace.fts_candidate_count,
                 "fused": response.trace.fused_candidate_count,
             },
+            "representation": {
+                "bundle_used": response.trace.representation_bundle_used,
+                "fts_document_version": response.trace.fts_document_version,
+                "rerank_features_used": response.trace.rerank_features_used,
+            },
             "results": [
                 {
                     "photo_id": item.unsplash_photo_id,
@@ -71,6 +76,8 @@ def search_debug(
                     "orientation": item.orientation,
                     "has_human": item.has_human,
                     "search_text": item.search_text,
+                    "retrieval_caption_text": item.retrieval_caption_text,
+                    "retrieval_tag_text": item.retrieval_tag_text,
                     "wallpaper_score": item.wallpaper_score,
                     "photography_reference_score": item.photography_reference_score,
                     "scores": {

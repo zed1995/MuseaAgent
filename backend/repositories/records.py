@@ -14,6 +14,10 @@ class PhotoIndexRecord:
     index_status: str
     ai_caption: str | None = None
     ai_short_caption: str | None = None
+    retrieval_caption_text: str = ""
+    retrieval_tag_text: str = ""
+    retrieval_document_text: str = ""
+    embedding_text: str = ""
     scene_tags: list[str] | None = None
     mood_tags: list[str] | None = None
     style_tags: list[str] | None = None
@@ -63,9 +67,20 @@ class PhotoRetrievalCandidate:
     orientation: str | None
     search_text: str
     ai_caption: str
-    has_human: bool
-    wallpaper_score: float
-    photography_reference_score: float
+    has_human: bool = False
+    wallpaper_score: float = 0.0
+    photography_reference_score: float = 0.0
+    retrieval_caption_text: str = ""
+    retrieval_tag_text: str = ""
+    has_face: bool = False
+    is_dark: bool = False
+    is_minimal: bool = False
+    dominant_colors: list[str] | None = None
+    scene_tags: list[str] | None = None
+    style_tags: list[str] | None = None
+    color_tags: list[str] | None = None
+    subject_tags: list[str] | None = None
+    use_case_tags: list[str] | None = None
     vector_score: float = 0.0
     fts_score: float = 0.0
 

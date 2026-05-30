@@ -15,6 +15,13 @@ class SearchLogRepository:
             request_id=entry.request_id,
             user_id=entry.user_id,
             query=entry.query,
+            intent=entry.intent,
+            rewritten_queries=entry.rewritten_queries,
+            filters=entry.filters,
+            retrieved_photo_ids=entry.retrieved_photo_ids,
+            reranked_photo_ids=entry.reranked_photo_ids,
+            latency_ms=entry.latency_ms,
+            result_count=entry.result_count,
         )
         self._session.add(row)
         self._session.flush()

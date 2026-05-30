@@ -31,3 +31,6 @@ class RetrievalTrace(BaseModel):
     fts_candidate_count: int = 0
     fused_candidate_count: int = 0
     dropped_candidate_reasons: list[str] = []
+    representation_bundle_used: bool = False
+    fts_document_version: str = ""
+    rerank_features_used: list[str] = []

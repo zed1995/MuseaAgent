@@ -40,6 +40,10 @@ class PhotoIndexRepository:
             existing.search_text = entry.search_text
             existing.ai_caption = entry.ai_caption
             existing.ai_short_caption = entry.ai_short_caption
+            existing.retrieval_caption_text = entry.retrieval_caption_text
+            existing.retrieval_tag_text = entry.retrieval_tag_text
+            existing.retrieval_document_text = entry.retrieval_document_text
+            existing.embedding_text = entry.embedding_text
             existing.scene_tags = entry.scene_tags or []
             existing.mood_tags = entry.mood_tags or []
             existing.style_tags = entry.style_tags or []
@@ -72,6 +76,10 @@ class PhotoIndexRepository:
                 index_status="indexed",
                 ai_caption=entry.ai_caption,
                 ai_short_caption=entry.ai_short_caption,
+                retrieval_caption_text=entry.retrieval_caption_text,
+                retrieval_tag_text=entry.retrieval_tag_text,
+                retrieval_document_text=entry.retrieval_document_text,
+                embedding_text=entry.embedding_text,
                 scene_tags=entry.scene_tags or [],
                 mood_tags=entry.mood_tags or [],
                 style_tags=entry.style_tags or [],
@@ -149,7 +157,36 @@ class PhotoIndexRepository:
         if not terms:
             return []
 
-        tsvector = func.to_tsvector("english", PhotoIndexOrmModel.search_text)
+        tsvector = (
+            func.setweight(
+                func.to_tsvector("english", func.coalesce(PhotoIndexOrmModel.search_text, "")),
+                "A",
+            ).op("||")(
+                func.setweight(
+                    func.to_tsvector(
+                        "english",
+                        func.coalesce(PhotoIndexOrmModel.retrieval_caption_text, ""),
+                    ),
+                    "A",
+                )
+            ).op("||")(
+                func.setweight(
+                    func.to_tsvector(
+                        "english",
+                        func.coalesce(PhotoIndexOrmModel.retrieval_tag_text, ""),
+                    ),
+                    "B",
+                )
+            ).op("||")(
+                func.setweight(
+                    func.to_tsvector(
+                        "english",
+                        func.coalesce(PhotoIndexOrmModel.retrieval_document_text, ""),
+                    ),
+                    "C",
+                )
+            )
+        )
         tsquery = func.websearch_to_tsquery("english", " OR ".join(terms))
 
         rank_expr = func.ts_rank(tsvector, tsquery, 32)  # 32 = normalize by doc length
@@ -193,6 +230,10 @@ class PhotoIndexRepository:
             index_status=row.index_status,
             ai_caption=row.ai_caption,
             ai_short_caption=row.ai_short_caption,
+            retrieval_caption_text=row.retrieval_caption_text,
+            retrieval_tag_text=row.retrieval_tag_text,
+            retrieval_document_text=row.retrieval_document_text,
+            embedding_text=row.embedding_text,
             scene_tags=row.scene_tags,
             mood_tags=row.mood_tags,
             style_tags=row.style_tags,
@@ -223,9 +264,20 @@ class PhotoIndexRepository:
             orientation=orm.orientation,
             search_text=orm.search_text,
             ai_caption=orm.ai_caption,
+            retrieval_caption_text=orm.retrieval_caption_text,
+            retrieval_tag_text=orm.retrieval_tag_text,
             has_human=orm.has_human,
+            has_face=orm.has_face,
+            is_dark=orm.is_dark,
+            is_minimal=orm.is_minimal,
             wallpaper_score=orm.wallpaper_score,
             photography_reference_score=orm.photography_reference_score,
+            dominant_colors=orm.dominant_colors,
+            scene_tags=orm.scene_tags,
+            style_tags=orm.style_tags,
+            color_tags=orm.color_tags,
+            subject_tags=orm.subject_tags,
+            use_case_tags=orm.use_case_tags,
             vector_score=getattr(row, "vector_score", 0.0),
             fts_score=getattr(row, "fts_score", 0.0),
         )

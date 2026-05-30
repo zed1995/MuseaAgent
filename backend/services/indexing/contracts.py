@@ -49,8 +49,17 @@ class RetrievalArtifacts:
 
 
 @dataclass(slots=True)
+class RepresentationArtifacts:
+    retrieval_caption_text: str | None = None
+    retrieval_tag_text: str | None = None
+    retrieval_document_text: str | None = None
+    embedding_text: str | None = None
+
+
+@dataclass(slots=True)
 class EnrichmentContext:
     source: NormalizedSourcePhoto
     text_artifacts: TextArtifacts = field(default_factory=TextArtifacts)
     semantic_artifacts: SemanticArtifacts = field(default_factory=SemanticArtifacts)
+    representation_artifacts: RepresentationArtifacts = field(default_factory=RepresentationArtifacts)
     retrieval_artifacts: RetrievalArtifacts = field(default_factory=RetrievalArtifacts)

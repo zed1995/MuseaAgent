@@ -28,6 +28,8 @@ class RetrievalItem:
     wallpaper_score: float
     photography_reference_score: float
     score_breakdown: RetrievalScoreBreakdown
+    retrieval_caption_text: str = ""
+    retrieval_tag_text: str = ""
 
 
 @dataclass(slots=True)
@@ -194,6 +196,8 @@ class RetrievalService:
                 has_human=r.has_human,
                 search_text=r.search_text,
                 ai_caption=r.ai_caption,
+                retrieval_caption_text=r.retrieval_caption_text,
+                retrieval_tag_text=r.retrieval_tag_text,
                 wallpaper_score=r.wallpaper_score,
                 photography_reference_score=r.photography_reference_score,
                 score_breakdown=r.score_breakdown,
@@ -221,6 +225,12 @@ class RetrievalService:
             fts_candidate_count=len(fts_candidates),
             fused_candidate_count=len(fused),
             dropped_candidate_reasons=dropped,
+            representation_bundle_used=True,
+            fts_document_version="multi_field_weighted_v1",
+            rerank_features_used=[
+                "multi_field_alignment",
+                "structured_phase_3_signals",
+            ],
         )
 
         return RetrievalResponse(
@@ -255,6 +265,7 @@ class RetrievalService:
         return {
             "user_explicit_terms": prepared.rewrite.user_explicit_terms,
             "supporting_terms": supporting_terms,
+            "exclude_faces": prepared.understanding.negative_constraints.exclude_faces,
         }
 
     def _fallback_path(self, prepared: PreparedRetrievalRequest) -> str | None:

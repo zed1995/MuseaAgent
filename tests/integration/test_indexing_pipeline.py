@@ -101,6 +101,10 @@ def test_indexing_pipeline_builds_completed_index_entry(pipeline) -> None:
     assert "quiet" in record.search_text
     assert record.ai_caption is not None
     assert record.embedding is not None
+    assert record.retrieval_caption_text
+    assert record.retrieval_tag_text
+    assert record.retrieval_document_text
+    assert record.embedding_text
 
 
 def test_indexing_pipeline_handles_payload_without_user(fake_services) -> None:

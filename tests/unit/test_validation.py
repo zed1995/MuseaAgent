@@ -3,6 +3,7 @@ from datetime import UTC, datetime
 import pytest
 
 from backend.services.indexing.contracts import EnrichmentContext, NormalizedSourcePhoto, RetrievalArtifacts, SemanticArtifacts, TextArtifacts
+from backend.services.indexing.representation import compose_retrieval_representation
 from backend.services.indexing.validation import build_completed_index_entry
 
 
@@ -61,6 +62,21 @@ def test_validation_rejects_missing_embedding() -> None:
     )
     context.text_artifacts.search_text = "mountain wallpaper"
     context.semantic_artifacts.ai_caption = "A mountain wallpaper."
+    context.semantic_artifacts.ai_short_caption = "Mountain wallpaper"
+    context.semantic_artifacts.scene_tags = ["mountain"]
+    context.representation_artifacts = compose_retrieval_representation(
+        search_text=context.text_artifacts.search_text,
+        ai_short_caption=context.semantic_artifacts.ai_short_caption,
+        ai_caption=context.semantic_artifacts.ai_caption,
+        scene_tags=context.semantic_artifacts.scene_tags,
+        mood_tags=context.semantic_artifacts.mood_tags,
+        style_tags=context.semantic_artifacts.style_tags,
+        composition_tags=context.semantic_artifacts.composition_tags,
+        lighting_tags=context.semantic_artifacts.lighting_tags,
+        color_tags=context.semantic_artifacts.color_tags,
+        subject_tags=context.semantic_artifacts.subject_tags,
+        use_case_tags=context.semantic_artifacts.use_case_tags,
+    )
 
     with pytest.raises(ValueError, match="embedding"):
         build_completed_index_entry(context=context, entry_id=1003)
@@ -88,6 +104,19 @@ def test_validation_builds_completed_entry() -> None:
     context.semantic_artifacts.mood_tags = ["calm"]
     context.semantic_artifacts.has_human = False
     context.semantic_artifacts.wallpaper_score = 0.94
+    context.representation_artifacts = compose_retrieval_representation(
+        search_text=context.text_artifacts.search_text,
+        ai_short_caption=context.semantic_artifacts.ai_short_caption,
+        ai_caption=context.semantic_artifacts.ai_caption,
+        scene_tags=context.semantic_artifacts.scene_tags,
+        mood_tags=context.semantic_artifacts.mood_tags,
+        style_tags=context.semantic_artifacts.style_tags,
+        composition_tags=context.semantic_artifacts.composition_tags,
+        lighting_tags=context.semantic_artifacts.lighting_tags,
+        color_tags=context.semantic_artifacts.color_tags,
+        subject_tags=context.semantic_artifacts.subject_tags,
+        use_case_tags=context.semantic_artifacts.use_case_tags,
+    )
     context.retrieval_artifacts.embedding = [0.1] * 1536
 
     entry = build_completed_index_entry(context=context, entry_id=1004)
@@ -97,3 +126,4 @@ def test_validation_builds_completed_entry() -> None:
     assert entry.ai_caption == "A dark mountain under the stars, ideal for wallpaper."
     assert entry.wallpaper_score == 0.94
     assert entry.indexed_at is not None
+    assert entry.embedding_text == entry.retrieval_document_text

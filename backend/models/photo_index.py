@@ -26,6 +26,10 @@ class PhotoIndexOrmModel(Base):
     # Phase 3 completed-record enrichment fields
     ai_caption: Mapped[str] = mapped_column(Text, nullable=False)
     ai_short_caption: Mapped[str] = mapped_column(Text, nullable=False)
+    retrieval_caption_text: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    retrieval_tag_text: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    retrieval_document_text: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    embedding_text: Mapped[str] = mapped_column(Text, nullable=False, default="")
     scene_tags: Mapped[list[str]] = mapped_column(JSONB, nullable=False, default=list)
     mood_tags: Mapped[list[str]] = mapped_column(JSONB, nullable=False, default=list)
     style_tags: Mapped[list[str]] = mapped_column(JSONB, nullable=False, default=list)

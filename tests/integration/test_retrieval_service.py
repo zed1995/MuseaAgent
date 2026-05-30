@@ -97,10 +97,20 @@ def _candidate(
     orientation: str = "portrait",
     has_human: bool = False,
     search_text: str = "dark calm oled wallpaper",
+    retrieval_caption_text: str = "Dark calm wallpaper",
+    retrieval_tag_text: str = "dark calm oled wallpaper minimal",
     vector_score: float = 0.0,
     fts_score: float = 0.0,
     wallpaper_score: float = 0.9,
     photography_reference_score: float = 0.3,
+    has_face: bool = False,
+    is_dark: bool = False,
+    is_minimal: bool = False,
+    scene_tags: list[str] | None = None,
+    style_tags: list[str] | None = None,
+    color_tags: list[str] | None = None,
+    subject_tags: list[str] | None = None,
+    use_case_tags: list[str] | None = None,
 ) -> PhotoRetrievalCandidate:
     return PhotoRetrievalCandidate(
         id=id,
@@ -112,6 +122,16 @@ def _candidate(
         has_human=has_human,
         wallpaper_score=wallpaper_score,
         photography_reference_score=photography_reference_score,
+        retrieval_caption_text=retrieval_caption_text,
+        retrieval_tag_text=retrieval_tag_text,
+        has_face=has_face,
+        is_dark=is_dark,
+        is_minimal=is_minimal,
+        scene_tags=scene_tags,
+        style_tags=style_tags,
+        color_tags=color_tags,
+        subject_tags=subject_tags,
+        use_case_tags=use_case_tags,
         vector_score=vector_score,
         fts_score=fts_score,
     )
@@ -148,6 +168,9 @@ def test_retrieval_service_returns_ranked_results_for_chinese_wallpaper_query() 
     assert response.trace.rewrite_for_fts
     assert response.trace.user_explicit_terms
     assert response.trace.fallback_path is None
+    assert response.trace.representation_bundle_used is True
+    assert response.trace.fts_document_version == "multi_field_weighted_v1"
+    assert "structured_phase_3_signals" in response.trace.rerank_features_used
 
 
 def test_retrieval_service_falls_back_to_fts_when_vector_path_errors() -> None:
@@ -349,3 +372,52 @@ def test_retrieval_service_respects_requested_limit() -> None:
     )
 
     assert len(response.items) == 7
+
+
+def test_retrieval_service_prefers_candidates_matching_structured_phase_3_features() -> None:
+    repository = FakeRepository(
+        vector_candidates=[
+            _candidate(
+                id=10,
+                photo_id="dark-minimal-match",
+                search_text="wallpaper",
+                retrieval_tag_text="dark minimal wallpaper oled",
+                vector_score=0.4,
+                wallpaper_score=0.8,
+                is_dark=True,
+                is_minimal=True,
+                style_tags=["minimal"],
+                color_tags=["dark"],
+                use_case_tags=["wallpaper"],
+            ),
+            _candidate(
+                id=11,
+                photo_id="generic-wallpaper",
+                search_text="wallpaper",
+                retrieval_tag_text="wallpaper scenic",
+                vector_score=0.4,
+                wallpaper_score=0.8,
+                style_tags=["scenic"],
+                use_case_tags=["wallpaper"],
+            ),
+        ]
+    )
+    service = RetrievalService(
+        repository=repository,
+        preparation_service=RetrievalPreparationService(
+            understanding_service=_understanding_service(),
+            rewrite_service=RetrievalRewriteService(),
+        ),
+        embedder=FakeEmbedder(),
+        reranker=RetrievalReranker(),
+        settings=RetrievalSettings(),
+    )
+
+    response = service.retrieve(
+        query="我想找深色的极简壁纸",
+        mode="wallpaper",
+        limit=5,
+    )
+
+    assert response.items
+    assert response.items[0].unsplash_photo_id == "dark-minimal-match"

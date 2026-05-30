@@ -22,6 +22,8 @@ class RankedRetrievalItem:
     wallpaper_score: float
     photography_reference_score: float
     score_breakdown: RetrievalScoreBreakdown
+    retrieval_caption_text: str = ""
+    retrieval_tag_text: str = ""
 
 
 def _normalize_terms(values: list[str]) -> list[str]:
@@ -38,8 +40,12 @@ def _compute_alignment_scores(
     soft_signals: dict[str, list[str]],
     search_text: str,
     ai_caption: str,
+    retrieval_caption_text: str,
+    retrieval_tag_text: str,
 ) -> tuple[float, float]:
-    combined_text = (search_text + " " + ai_caption).lower()
+    combined_text = " ".join(
+        [search_text, ai_caption, retrieval_caption_text, retrieval_tag_text]
+    ).lower()
     explicit_terms = _normalize_terms(soft_signals.get("user_explicit_terms", []))
     supporting_terms = _normalize_terms(soft_signals.get("supporting_terms", []))
 
@@ -57,6 +63,40 @@ def _compute_alignment_scores(
         else 0.0
     )
     return explicit_score, supporting_score
+
+
+def _compute_structured_match_score(
+    soft_signals: dict[str, list[str] | bool],
+    candidate: FusedRetrievalCandidate,
+) -> float:
+    structured_terms = _normalize_terms(
+        [
+            *(candidate.scene_tags or []),
+            *(candidate.style_tags or []),
+            *(candidate.color_tags or []),
+            *(candidate.subject_tags or []),
+            *(candidate.use_case_tags or []),
+        ]
+    )
+    if not structured_terms and not soft_signals.get("exclude_faces", False):
+        return 0.0
+
+    structured_text = " ".join(structured_terms)
+    explicit_terms = _normalize_terms(soft_signals.get("user_explicit_terms", []))
+    supporting_terms = _normalize_terms(soft_signals.get("supporting_terms", []))
+
+    term_match_scores: list[float] = []
+    if explicit_terms:
+        explicit_matches = sum(1 for term in explicit_terms if term in structured_text)
+        term_match_scores.append(explicit_matches / len(explicit_terms))
+    if supporting_terms:
+        supporting_matches = sum(1 for term in supporting_terms if term in structured_text)
+        term_match_scores.append(supporting_matches / len(supporting_terms))
+
+    if soft_signals.get("exclude_faces", False):
+        term_match_scores.append(1.0 if candidate.has_face is False else 0.0)
+
+    return sum(term_match_scores) / len(term_match_scores) if term_match_scores else 0.0
 
 
 class RetrievalReranker:
@@ -117,8 +157,13 @@ class RetrievalReranker:
 
             # --- explicit/supporting alignment scores (0.0 - 1.0) ---
             explicit_alignment_score, supporting_alignment_score = _compute_alignment_scores(
-                soft_signals, c.search_text, c.ai_caption
+                soft_signals,
+                c.search_text,
+                c.ai_caption,
+                c.retrieval_caption_text,
+                c.retrieval_tag_text,
             )
+            structured_match_score = _compute_structured_match_score(soft_signals, c)
 
             # --- final_score ---
             final_score = (
@@ -126,7 +171,8 @@ class RetrievalReranker:
                 + 0.20 * use_case_score
                 + 0.15 * metadata_score
                 + 0.10 * explicit_alignment_score
-                + 0.05 * supporting_alignment_score
+                + 0.03 * supporting_alignment_score
+                + 0.02 * structured_match_score
             )
 
             breakdown = RetrievalScoreBreakdown(
@@ -151,6 +197,8 @@ class RetrievalReranker:
                     has_human=c.has_human,
                     wallpaper_score=c.wallpaper_score,
                     photography_reference_score=c.photography_reference_score,
+                    retrieval_caption_text=c.retrieval_caption_text,
+                    retrieval_tag_text=c.retrieval_tag_text,
                     score_breakdown=breakdown,
                 )
             )

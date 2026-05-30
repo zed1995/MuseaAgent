@@ -63,6 +63,55 @@ def test_repository_can_recall_candidates_with_orientation_and_has_human_filters
 
 
 @pytest.mark.postgres
+def test_repository_fts_matches_representation_fields_beyond_search_text(session) -> None:
+    repository = PhotoIndexRepository(session)
+    repository.bulk_upsert_index_entries(
+        [
+            PhotoIndexWriteModel(
+                id=3201,
+                unsplash_photo_id="caption-match",
+                unsplash_user_id="user-1",
+                orientation="portrait",
+                source_text="source",
+                search_text="mountain wallpaper",
+                ai_caption="A dark minimalist wallpaper with negative space.",
+                ai_short_caption="Dark minimalist wallpaper",
+                retrieval_caption_text=(
+                    "Dark minimalist wallpaper. A dark minimalist wallpaper with negative space."
+                ),
+                retrieval_tag_text="negative space dark blue minimalist wallpaper",
+                retrieval_document_text=(
+                    "Dark minimalist wallpaper. A dark minimalist wallpaper with negative space. "
+                    "negative space dark blue minimalist wallpaper."
+                ),
+                embedding_text=(
+                    "Dark minimalist wallpaper. A dark minimalist wallpaper with negative space. "
+                    "negative space dark blue minimalist wallpaper."
+                ),
+                composition_tags=["negative space"],
+                color_tags=["dark blue"],
+                has_human=False,
+                wallpaper_score=0.9,
+                photography_reference_score=0.2,
+                embedding=[0.1] * 1536,
+                indexed_at=datetime.now(UTC),
+            ),
+        ]
+    )
+    session.commit()
+
+    candidates = repository.search_full_text(
+        query_text="negative space dark blue wallpaper",
+        orientation=None,
+        has_human=None,
+        limit=10,
+    )
+
+    assert candidates
+    assert candidates[0].unsplash_photo_id == "caption-match"
+
+
+@pytest.mark.postgres
 def test_repository_can_recall_vector_candidates(session) -> None:
     repository = PhotoIndexRepository(session)
     repository.bulk_upsert_index_entries(
