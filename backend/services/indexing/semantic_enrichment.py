@@ -44,7 +44,9 @@ _ENRICHMENT_PROMPT = (
     '- "has_face": boolean\n'
     '- "is_abstract": boolean\n'
     '- "is_minimal": boolean\n'
-    '- "is_dark": boolean\n\n'
+    '- "is_dark": boolean\n'
+    '- "wallpaper_score": float from 0.0 to 1.0 for how suitable the image is as a device wallpaper\n'
+    '- "photography_reference_score": float from 0.0 to 1.0 for how useful the image is as a photography reference\n\n'
     "Photo context — description: {analysis_text}\n"
     "Search text: {search_text}\n\n"
     "Return ONLY valid JSON, no other text."
@@ -71,6 +73,8 @@ class StubSemanticEnricher(SemanticEnricher):
             style_tags=["minimal"],
             has_human=True if "person" in request.search_text.lower() or "human" in request.search_text.lower() else False,
             has_face=False,
+            wallpaper_score=0.8 if "wallpaper" in request.search_text.lower() else 0.5,
+            photography_reference_score=0.6 if "scenic" in request.search_text.lower() else 0.4,
         )
 
 
@@ -125,6 +129,8 @@ class OpenAISemanticEnricher(SemanticEnricher):
             is_abstract=data.get("is_abstract"),
             is_minimal=data.get("is_minimal"),
             is_dark=data.get("is_dark"),
+            wallpaper_score=data.get("wallpaper_score"),
+            photography_reference_score=data.get("photography_reference_score"),
         )
 
 

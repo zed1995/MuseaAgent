@@ -78,7 +78,9 @@ def test_openai_semantic_enricher_parses_json_response() -> None:
             '"has_face": false,'
             '"is_abstract": false,'
             '"is_minimal": true,'
-            '"is_dark": true}'
+            '"is_dark": true,'
+            '"wallpaper_score": 0.82,'
+            '"photography_reference_score": 0.61}'
         )
         choice = MagicMock()
         choice.message = msg
@@ -99,6 +101,8 @@ def test_openai_semantic_enricher_parses_json_response() -> None:
     assert artifacts.scene_tags == ["mountain", "night"]
     assert artifacts.has_human is False
     assert artifacts.is_dark is True
+    assert artifacts.wallpaper_score == 0.82
+    assert artifacts.photography_reference_score == 0.61
 
 
 def test_openai_embedder_returns_vector() -> None:
