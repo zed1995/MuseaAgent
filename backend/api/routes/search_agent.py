@@ -35,6 +35,7 @@ def search_agent(
             min_acceptable_results=settings.agent_workflow.min_acceptable_results,
             hard_constraint_min_match_ratio=settings.agent_workflow.hard_constraint_min_match_ratio,
             max_retry_count=settings.agent_workflow.max_retry_count,
+            settings=settings,
         )
         try:
             result = workflow.invoke(

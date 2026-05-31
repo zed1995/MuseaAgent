@@ -2,7 +2,20 @@ from backend.agents.contracts import SearchSpec
 
 
 class PlannerNode:
+    def __init__(self, chain=None) -> None:
+        self._chain = chain
+
     def run(self, state: dict[str, object]) -> dict[str, object]:
+        if self._chain is not None:
+            result = self._chain.invoke(
+                {
+                    "mode": state["mode"],
+                    "hard_constraints": state["hard_constraints"],
+                    "soft_preferences": state["soft_preferences"],
+                }
+            )
+            return {"search_specs": result.search_specs}
+
         mode = str(state["mode"])
         hard_constraints = dict(state["hard_constraints"])
         soft_preferences = dict(state["soft_preferences"])

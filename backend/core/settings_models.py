@@ -1,4 +1,6 @@
-from pydantic import BaseModel
+from typing import Literal
+
+from pydantic import BaseModel, Field
 
 
 class DatabaseSettings(BaseModel):
@@ -27,6 +29,52 @@ class AgentWorkflowSettings(BaseModel):
     max_retry_count: int = 1
     min_acceptable_results: int = 6
     hard_constraint_min_match_ratio: float = 0.85
+
+
+class LLMProviderConfig(BaseModel):
+    provider: Literal["openai", "gemini", "openrouter"]
+    model: str
+    api_key: str = ""
+    base_url: str = ""
+
+
+class LLMCapabilitySettings(BaseModel):
+    understanding: LLMProviderConfig = Field(
+        default_factory=lambda: LLMProviderConfig(
+            provider="gemini",
+            model="gemini-2.5-flash-lite",
+        )
+    )
+    rewrite: LLMProviderConfig = Field(
+        default_factory=lambda: LLMProviderConfig(
+            provider="gemini",
+            model="gemini-2.5-flash-lite",
+        )
+    )
+    intent: LLMProviderConfig = Field(
+        default_factory=lambda: LLMProviderConfig(
+            provider="gemini",
+            model="gemini-2.5-flash-lite",
+        )
+    )
+    planner: LLMProviderConfig = Field(
+        default_factory=lambda: LLMProviderConfig(
+            provider="gemini",
+            model="gemini-2.5-flash-lite",
+        )
+    )
+    critic: LLMProviderConfig = Field(
+        default_factory=lambda: LLMProviderConfig(
+            provider="gemini",
+            model="gemini-2.5-flash-lite",
+        )
+    )
+    response: LLMProviderConfig = Field(
+        default_factory=lambda: LLMProviderConfig(
+            provider="gemini",
+            model="gemini-2.5-flash-lite",
+        )
+    )
 
 
 class IndexingSettings(BaseModel):

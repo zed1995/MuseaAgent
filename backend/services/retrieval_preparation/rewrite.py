@@ -6,6 +6,7 @@ import re
 from collections.abc import Callable
 from json import JSONDecodeError
 
+from backend.llm.chains.retrieval_rewrite_chain import RetrievalRewriteChain
 from backend.services.retrieval_preparation.contracts import (
     QueryUnderstandingResult,
     RetrievalRewriteResult,
@@ -23,10 +24,17 @@ def _strip_markdown_code_fence(payload: str) -> str:
 
 
 class RetrievalRewriteService:
-    def __init__(self, model_client: Callable[[QueryUnderstandingResult], str | dict] | None = None) -> None:
+    def __init__(
+        self,
+        model_client: Callable[[QueryUnderstandingResult], str | dict] | None = None,
+        chain: RetrievalRewriteChain | None = None,
+    ) -> None:
         self._model_client = model_client
+        self._chain = chain
 
     def rewrite(self, understanding: QueryUnderstandingResult) -> RetrievalRewriteResult:
+        if self._chain is not None:
+            return self._chain.invoke({"understanding": understanding})
         if self._model_client is not None:
             payload = self._model_client(understanding)
             if isinstance(payload, str):

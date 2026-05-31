@@ -6,6 +6,7 @@ from backend.core.settings_models import (
     AgentWorkflowSettings,
     DatabaseSettings,
     IndexingSettings,
+    LLMCapabilitySettings,
     RetrievalPreparationSettings,
     RetrievalSettings,
 )
@@ -21,6 +22,7 @@ class Settings(BaseSettings):
     retrieval: RetrievalSettings = RetrievalSettings()
     retrieval_preparation: RetrievalPreparationSettings = RetrievalPreparationSettings()
     agent_workflow: AgentWorkflowSettings = AgentWorkflowSettings()
+    llm: LLMCapabilitySettings = LLMCapabilitySettings()
 
     model_config = SettingsConfigDict(
         env_prefix="MUSEA_AGENT_",

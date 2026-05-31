@@ -1,7 +1,7 @@
 from backend.agents.contracts import CriticResult, SearchResult
 
 
-class CriticPolicy:
+class RuleCriticPolicy:
     def __init__(self, min_acceptable_results: int, hard_constraint_min_match_ratio: float) -> None:
         self._min_acceptable_results = min_acceptable_results
         self._hard_constraint_min_match_ratio = hard_constraint_min_match_ratio
@@ -65,3 +65,26 @@ class CriticPolicy:
             preferred_spec_id=best.spec_id,
             summary="current results are not strong enough",
         )
+
+
+class HybridCriticPolicy:
+    def __init__(self, base_policy: RuleCriticPolicy, advice_chain=None) -> None:
+        self._base_policy = base_policy
+        self._advice_chain = advice_chain
+
+    def evaluate(self, search_results: list[SearchResult], retry_count: int) -> CriticResult:
+        result = self._base_policy.evaluate(search_results=search_results, retry_count=retry_count)
+        if self._advice_chain is None:
+            return result
+
+        advice = self._advice_chain.invoke(
+            {
+                "rule_result": result,
+                "retry_count": retry_count,
+            }
+        )
+        return result.model_copy(update={"summary": advice.summary})
+
+
+class CriticPolicy(RuleCriticPolicy):
+    """Backward-compatible alias while migrating to hybrid critic support."""

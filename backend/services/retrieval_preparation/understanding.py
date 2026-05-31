@@ -6,6 +6,7 @@ import re
 from collections.abc import Callable
 from json import JSONDecodeError
 
+from backend.llm.chains.retrieval_understanding_chain import RetrievalUnderstandingChain
 from backend.services.retrieval.contracts import RetrievalFilters
 from backend.services.retrieval_preparation.contracts import (
     HardFilters,
@@ -24,8 +25,13 @@ def _strip_markdown_code_fence(payload: str) -> str:
 
 
 class QueryUnderstandingService:
-    def __init__(self, model_client: Callable[[str, str], str | dict] | None = None) -> None:
+    def __init__(
+        self,
+        model_client: Callable[[str, str], str | dict] | None = None,
+        chain: RetrievalUnderstandingChain | None = None,
+    ) -> None:
         self._model_client = model_client
+        self._chain = chain
 
     def understand(
         self,
@@ -33,6 +39,9 @@ class QueryUnderstandingService:
         mode: str,
         explicit_filters: RetrievalFilters | None = None,
     ) -> QueryUnderstandingResult:
+        if self._chain is not None:
+            result = self._chain.invoke({"query": query, "mode": mode})
+            return self._merge_explicit_filters(result, explicit_filters)
         if self._model_client is None:
             raise RuntimeError("model-backed understanding is required")
         result = self._understand_with_model(query, mode)
