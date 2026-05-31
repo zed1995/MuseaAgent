@@ -7,6 +7,8 @@ class PlannerNode:
 
     def run(self, state: dict[str, object]) -> dict[str, object]:
         if self._chain is not None:
+            # When an LLM planner is available, it must still emit controlled
+            # search specs rather than free-form retrieval behavior.
             result = self._chain.invoke(
                 {
                     "mode": state["mode"],
@@ -20,6 +22,8 @@ class PlannerNode:
         hard_constraints = dict(state["hard_constraints"])
         soft_preferences = dict(state["soft_preferences"])
 
+        # The deterministic fallback keeps the workflow usable without a model
+        # by always producing the same strict/balanced/exploratory spec set.
         strict_terms = self._build_terms(mode, soft_preferences, include_qualities=True, exploratory=False)
         balanced_terms = self._build_terms(mode, soft_preferences, include_qualities=False, exploratory=False)
         exploratory_terms = self._build_terms(mode, soft_preferences, include_qualities=False, exploratory=True)

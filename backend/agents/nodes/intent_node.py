@@ -7,6 +7,9 @@ class IntentNode:
 
     def run(self, state: VisualSearchState) -> dict[str, object]:
         if self._chain is not None:
+            # Intent classification is the first graph decision point: it sets
+            # the retrieval use-case before any constraints or search specs are
+            # derived downstream.
             result = self._chain.invoke(
                 {
                     "query": state["original_query"],
@@ -20,6 +23,8 @@ class IntentNode:
 
         query = state["original_query"]
 
+        # The rule-based fallback keeps the workflow bootable without a model
+        # while still separating obvious query types into different modes.
         if "摄影师" in query:
             mode = "photographer"
         elif "参考" in query:

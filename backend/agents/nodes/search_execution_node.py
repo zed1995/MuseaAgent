@@ -11,6 +11,9 @@ class SearchExecutionNode:
         results: list[SearchResult] = []
 
         for spec in state["search_specs"]:
+            # Each planner spec is executed independently so the critic can
+            # compare strict/balanced/exploratory outcomes instead of seeing
+            # only one merged retrieval result.
             retrieval_result = self._retrieval_service.retrieve(
                 query=spec.query_text,
                 mode=state["mode"],

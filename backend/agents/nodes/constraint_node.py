@@ -6,6 +6,9 @@ class ConstraintNode:
         self._retrieval_preparation_service = retrieval_preparation_service
 
     def run(self, state: VisualSearchState) -> dict[str, object]:
+        # Constraint extraction intentionally reuses the Phase 4 preparation
+        # stack so the graph consumes the same understanding contract that the
+        # retrieval core already trusts.
         prepared = self._retrieval_preparation_service.prepare(
             query=state["original_query"],
             mode=state["mode"],

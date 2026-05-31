@@ -5,6 +5,8 @@ def apply_retry_strategy(
     search_specs: list[SearchSpec],
     critic_result: CriticResult,
 ) -> list[SearchSpec]:
+    # Retry rewrites the active spec set, not the whole workflow state. This
+    # keeps retries explainable and prevents hidden replanning in the loop.
     if critic_result.retry_strategy == "none":
         return search_specs
 

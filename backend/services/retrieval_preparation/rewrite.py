@@ -33,6 +33,8 @@ class RetrievalRewriteService:
         self._chain = chain
 
     def rewrite(self, understanding: QueryUnderstandingResult) -> RetrievalRewriteResult:
+        # Rewrite translates one understanding result into retrieval-specific
+        # phrasing for both embedding search and lexical/FTS search.
         if self._chain is not None:
             return self._chain.invoke({"understanding": understanding})
         if self._model_client is not None:
@@ -69,6 +71,9 @@ class RetrievalRewriteService:
         self,
         understanding: QueryUnderstandingResult,
     ) -> RetrievalRewriteResult:
+        # Deterministic rewrite is the safety net for the whole consumer flow:
+        # even without model output, we still produce compact embedding terms
+        # and more literal lexical terms for FTS.
         user_explicit_terms: list[str] = []
         for values in (
             understanding.soft_preferences.colors,

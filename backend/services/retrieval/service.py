@@ -66,6 +66,9 @@ class RetrievalService:
     ) -> RetrievalResponse:
         logger.info("[retrieval] request: query=%r mode=%s limit=%d filters=%s", query, mode, limit, filters)
 
+        # Consumer flow: normalize once, run vector + FTS independently, fuse,
+        # rerank, then return both user-facing items and a trace for debugging.
+        # Each recall path is isolated so one failure can degrade gracefully.
         # 1. Normalize
         prepared = self._preparation_service.prepare(query, mode, filters)
         hard_filters = RetrievalFilters(
@@ -206,6 +209,8 @@ class RetrievalService:
         ]
 
         trace = RetrievalTrace(
+            # The trace keeps the consumer pipeline inspectable end-to-end,
+            # which is what powers `/api/search/debug` and agent diagnostics.
             original_query=original_query,
             normalized_query_text=prepared.rewrite.rewrite_for_fts,
             normalization_notes=prepared.understanding.understanding_notes,

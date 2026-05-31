@@ -7,6 +7,8 @@ class CriticNode:
         self._policy = policy
 
     def run(self, state: VisualSearchState) -> dict[str, object]:
+        # Critic is the only node allowed to decide whether the workflow stops
+        # or loops once more, so all pass/retry decisions funnel through here.
         return {
             "critic_result": self._policy.evaluate(
                 search_results=state["search_results"],

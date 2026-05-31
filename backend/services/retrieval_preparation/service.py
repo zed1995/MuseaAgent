@@ -26,6 +26,9 @@ class RetrievalPreparationService:
         mode: str,
         explicit_filters: RetrievalFilters | None = None,
     ) -> PreparedRetrievalRequest:
+        # Retrieval preparation is the consumer-side normalization boundary:
+        # first understand user intent/constraints, then produce stable
+        # rewrites for both embedding recall and full-text recall.
         try:
             understanding = self._understanding_service.understand(
                 query,
@@ -46,6 +49,8 @@ class RetrievalPreparationService:
 
         try:
             rewrite = self._rewrite_service.rewrite(understanding)
+            # Blank rewrites are treated as a soft failure so the consumer flow
+            # can fall back to a deterministic rewrite instead of aborting.
             if self._has_empty_rewrite(rewrite):
                 logger.warning(
                     "[prepare] empty rewrite generated for query=%r mode=%s: embedding=%r fts=%r notes=%s; using rewrite fallback",

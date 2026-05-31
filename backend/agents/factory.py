@@ -28,6 +28,9 @@ def build_agent_workflow(
     settings: Settings | None = None,
 ):
     if settings is not None:
+        # Optional provider-backed chains enrich individual nodes, but the graph
+        # shape and retry policy stay deterministic even when no LLM provider is
+        # configured for a capability.
         intent_chain = intent_chain or _build_optional_chain(
             capability="intent",
             config=settings.llm.intent,
@@ -72,6 +75,8 @@ def _build_optional_chain(*, capability: str, config, chain_cls):
     if not config.api_key:
         return None
 
+    # Keep provider choice out of node code so the workflow depends on one
+    # capability contract instead of provider-specific SDK wiring.
     model = build_chat_model(
         capability=capability,
         provider_name=config.provider,

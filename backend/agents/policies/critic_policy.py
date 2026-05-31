@@ -7,6 +7,8 @@ class RuleCriticPolicy:
         self._hard_constraint_min_match_ratio = hard_constraint_min_match_ratio
 
     def evaluate(self, search_results: list[SearchResult], retry_count: int) -> CriticResult:
+        # Rule critic keeps workflow branching deterministic: compare the plan
+        # variants by outcome quality, then emit one constrained retry strategy.
         if not search_results:
             return CriticResult(
                 passed=False,
@@ -22,6 +24,8 @@ class RuleCriticPolicy:
         balanced = next((result for result in search_results if result.spec_id.startswith("balanced")), None)
         exploratory = next((result for result in search_results if result.spec_id.startswith("exploratory")), None)
 
+        # Prefer relaxing from strict to balanced before jumping to exploratory,
+        # because balanced still preserves more of the original query intent.
         if strict and balanced and balanced.total_hits > strict.total_hits:
             return CriticResult(
                 passed=False,
@@ -77,6 +81,8 @@ class HybridCriticPolicy:
         if self._advice_chain is None:
             return result
 
+        # LLM advice can improve the human-readable summary, but the retry
+        # decision still comes from the rule policy so routing remains stable.
         advice = self._advice_chain.invoke(
             {
                 "rule_result": result,

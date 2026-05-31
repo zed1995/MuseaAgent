@@ -8,6 +8,9 @@ from backend.services.indexing.translation import build_translator
 
 
 def build_indexing_pipeline(*, session_factory, settings):
+    # The producer side is intentionally assembled once per request/sync run so
+    # translation, enrichment, scoring, embedding, and persistence share one
+    # consistent pipeline boundary.
     session = session_factory()
     repository = PhotoIndexRepository(session)
 

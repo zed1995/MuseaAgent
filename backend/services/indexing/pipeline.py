@@ -15,6 +15,8 @@ class IndexingPipeline:
         self._repository = repository
 
     def process_photo(self, payload: dict):
+        # Producer flow: normalize source payload -> derive text -> enrich
+        # semantics -> score -> build retrieval representation -> embed -> upsert.
         source = normalize_unsplash_photo(payload)
         context = EnrichmentContext(source=source)
 
@@ -44,6 +46,9 @@ class IndexingPipeline:
             use_case_tags=context.semantic_artifacts.use_case_tags,
         )
         context.retrieval_artifacts.embedding = self._embedder.embed(
+            # Embeddings are generated from the retrieval-facing representation
+            # rather than the raw source text so search uses the same canonical
+            # phrasing that the index row stores.
             search_text=context.representation_artifacts.embedding_text or "",
             caption=context.semantic_artifacts.ai_caption or "",
             tags=[],

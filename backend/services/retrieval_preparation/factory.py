@@ -8,6 +8,8 @@ from backend.services.retrieval_preparation.understanding import QueryUnderstand
 
 
 def build_retrieval_preparation_service(settings: Settings) -> RetrievalPreparationService:
+    # Preparation is built as a hybrid capability: use provider-backed chains
+    # when enabled, otherwise keep the deterministic fallback path available.
     understanding_chain = None
     rewrite_chain = None
 

@@ -39,6 +39,8 @@ class QueryUnderstandingService:
         mode: str,
         explicit_filters: RetrievalFilters | None = None,
     ) -> QueryUnderstandingResult:
+        # Understanding is responsible for extracting structured intent and
+        # constraints once, before retrieval paths start diverging.
         if self._chain is not None:
             result = self._chain.invoke({"query": query, "mode": mode})
             return self._merge_explicit_filters(result, explicit_filters)
@@ -48,6 +50,8 @@ class QueryUnderstandingService:
         return self._merge_explicit_filters(result, explicit_filters)
 
     def _understand_with_model(self, query: str, mode: str) -> QueryUnderstandingResult:
+        # Legacy model-client support is kept for compatibility while the
+        # LangChain capability layer becomes the primary structured path.
         payload = self._model_client(query, mode)
         if isinstance(payload, str):
             normalized_payload = _strip_markdown_code_fence(payload)
@@ -81,6 +85,8 @@ class QueryUnderstandingService:
         result: QueryUnderstandingResult,
         explicit_filters: RetrievalFilters | None,
     ) -> QueryUnderstandingResult:
+        # Explicit API filters win over inferred filters so route-level user
+        # intent remains authoritative when it conflicts with model inference.
         if explicit_filters is None:
             return result
 

@@ -18,6 +18,8 @@ def build_visual_search_graph(
 ):
     graph = StateGraph(VisualSearchState)
 
+    # The graph stays intentionally thin: nodes mutate state, while routing here
+    # expresses the agent lifecycle and the only retry loop in the workflow.
     graph.add_node("intent", intent_node.run)
     graph.add_node("constraint", constraint_node.run)
     graph.add_node("planner", planner_node.run)
@@ -66,6 +68,8 @@ def _build_prepare_retry_node():
         if critic_result is None:
             return {}
 
+        # Retry does not reopen the whole reasoning chain; it transforms the
+        # already-generated search specs using a fixed retry strategy.
         return {
             "search_specs": apply_retry_strategy(state["search_specs"], critic_result),
             "retry_count": state["retry_count"] + 1,

@@ -50,6 +50,9 @@ def build_retrieval_service(
     """
     if embedder is None:
         embedder = build_query_embedder(settings)
+    # Retrieval is assembled from three concerns: preparation, repository
+    # access, and deterministic reranking. The agent graph consumes this as an
+    # execution capability rather than reimplementing retrieval internally.
     preparation_service = build_retrieval_preparation_service(settings)
 
     return RetrievalService(

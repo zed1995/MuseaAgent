@@ -8,6 +8,8 @@ class ResponseNode:
     def run(self, state: VisualSearchState) -> dict[str, object]:
         critic_result = state["critic_result"]
         preferred_spec_id = critic_result.preferred_spec_id if critic_result is not None else None
+        # Response selection is a packaging step: by the time we get here, the
+        # critic has already decided which spec outcome should win.
         chosen_result = next(
             (
                 result

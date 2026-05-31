@@ -27,6 +27,9 @@ def search_agent(
         from sqlalchemy.orm import Session as ORMSession
 
         orm_session = ORMSession(bind=session)
+        # The agent route assembles the consumer stack per request: retrieval
+        # capabilities, retrieval preparation, and the LangGraph workflow that
+        # orchestrates multi-step search over those lower-level services.
         retrieval_service = build_retrieval_service(session=orm_session, settings=settings)
         retrieval_preparation_service = build_retrieval_preparation_service(settings=settings)
         workflow = build_agent_workflow(

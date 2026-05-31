@@ -6,6 +6,8 @@ logger = logging.getLogger(__name__)
 
 
 def run_cold_start_import(*, payloads: list[dict], pipeline) -> IngestionRunResult:
+    # Cold start favors observability over throughput because it is primarily
+    # used to bootstrap and verify a large corpus import from scratch.
     succeeded = 0
     failed = 0
     for i, payload in enumerate(payloads):
@@ -31,6 +33,8 @@ def run_cold_start_import(*, payloads: list[dict], pipeline) -> IngestionRunResu
 
 
 def run_incremental_sync(*, payloads: list[dict], pipeline) -> IngestionRunResult:
+    # Incremental sync reuses the same producer pipeline but reports only the
+    # coarse sync outcome so it can be driven as a lightweight background job.
     succeeded = 0
     failed = 0
     for payload in payloads:
