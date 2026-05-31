@@ -74,15 +74,13 @@ def test_understanding_preserves_soft_preferences_in_structured_fields() -> None
     assert "night" in result.soft_preferences.scenes
 
 
-def test_understanding_raises_when_model_client_is_missing() -> None:
+def test_understanding_falls_back_to_deterministic_parsing_when_model_client_is_missing() -> None:
     service = QueryUnderstandingService()
+    result = service.understand("我想找深色安静的壁纸，不要人物", "auto")
 
-    try:
-        service.understand("test", "auto")
-    except RuntimeError as exc:
-        assert "model-backed understanding is required" in str(exc)
-    else:
-        raise AssertionError("understanding should fail without a model client")
+    assert result.inferred_mode == "wallpaper"
+    assert result.hard_filters.has_human is False
+    assert "understanding fallback used" in result.understanding_notes
 
 
 def test_understanding_logs_invalid_json_payload(caplog) -> None:

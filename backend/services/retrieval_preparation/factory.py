@@ -16,6 +16,7 @@ def build_retrieval_preparation_service(settings: Settings) -> RetrievalPreparat
     if (
         not settings.indexing.mock_translation
         and settings.retrieval_preparation.use_model_understanding
+        and settings.llm.understanding.api_key
     ):
         understanding_config = settings.llm.understanding
         understanding_chain = RetrievalUnderstandingChain(
@@ -30,6 +31,7 @@ def build_retrieval_preparation_service(settings: Settings) -> RetrievalPreparat
     if (
         not settings.indexing.mock_translation
         and settings.retrieval_preparation.use_model_rewrite
+        and settings.llm.rewrite.api_key
     ):
         rewrite_config = settings.llm.rewrite
         rewrite_chain = RetrievalRewriteChain(

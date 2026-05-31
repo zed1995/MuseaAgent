@@ -1,0 +1,159 @@
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  background: #f3f0ea;
+  color: #1e1b16;
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: 280px minmax(0, 1fr) 340px;
+  min-height: 100vh;
+}
+
+.sidebar,
+.debug-panel {
+  padding: 16px;
+  background: #e8e0d3;
+  border-right: 1px solid #c9bea9;
+}
+
+.debug-panel {
+  border-right: 0;
+  border-left: 1px solid #c9bea9;
+}
+
+.sidebar-header,
+.composer-actions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.conversation-list,
+.message-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.conversation-item,
+.message {
+  border: 1px solid #c9bea9;
+  background: #fffaf1;
+  border-radius: 10px;
+  padding: 12px;
+}
+
+.empty-state {
+  border: 1px dashed #b8aa8c;
+  background: #fff8ea;
+  border-radius: 10px;
+  padding: 16px;
+  color: #5d5242;
+}
+
+.conversation-item.active {
+  border-color: #8e6f42;
+  background: #fff2d6;
+}
+
+.conversation-item.loading {
+  opacity: 0.7;
+  border-style: dashed;
+}
+
+.chat-panel {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  min-height: 100vh;
+}
+
+.chat-header,
+.composer {
+  padding: 16px;
+  background: #fffaf1;
+  border-bottom: 1px solid #d7cdb9;
+}
+
+.request-status {
+  min-height: 22px;
+  padding: 8px 16px 0;
+  color: #6d5b42;
+  font-size: 13px;
+}
+
+.composer {
+  border-bottom: 0;
+  border-top: 1px solid #d7cdb9;
+}
+
+.message-list {
+  padding: 16px;
+  overflow: auto;
+}
+
+.message.user {
+  background: #f3ede1;
+}
+
+.message.assistant {
+  background: #fff9ee;
+}
+
+textarea,
+select,
+button {
+  font: inherit;
+}
+
+textarea {
+  width: 100%;
+  resize: vertical;
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid #c9bea9;
+  background: #fff;
+}
+
+button,
+select {
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid #a99673;
+  background: #fff7e6;
+}
+
+button:disabled,
+select:disabled,
+textarea:disabled {
+  opacity: 0.65;
+  cursor: wait;
+}
+
+pre {
+  white-space: pre-wrap;
+  word-break: break-word;
+  background: #fffaf1;
+  border: 1px solid #c9bea9;
+  border-radius: 10px;
+  padding: 12px;
+}
+
+@media (max-width: 1100px) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar,
+  .debug-panel {
+    border: 0;
+    border-bottom: 1px solid #c9bea9;
+  }
+}

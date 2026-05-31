@@ -287,7 +287,7 @@ def test_retrieval_service_raises_when_understanding_fails() -> None:
         service.retrieve(query="test", mode="auto", limit=5)
 
 
-def test_retrieval_service_does_not_fallback_when_understanding_model_is_unavailable() -> None:
+def test_retrieval_service_uses_understanding_fallback_before_rewrite_failure() -> None:
     repository = FakeRepository()
     service = RetrievalService(
         repository=repository,
@@ -302,7 +302,7 @@ def test_retrieval_service_does_not_fallback_when_understanding_model_is_unavail
 
     with pytest.raises(
         RetrievalPreparationError,
-        match="retrieval understanding failed and did not return valid structured JSON",
+        match="retrieval rewrite failed and fallback could not produce a valid rewrite",
     ):
         service.retrieve(query="test", mode="auto", limit=5)
 

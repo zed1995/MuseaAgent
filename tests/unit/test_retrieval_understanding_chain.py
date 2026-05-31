@@ -18,6 +18,21 @@ class FakeChatModel:
         )
 
 
+class NullStringChatModel:
+    def with_structured_output(self, schema):
+        return RunnableLambda(
+            lambda _: schema(
+                raw_query="A cozy cafe interior with warm lighting and people reading.",
+                detected_language="en",
+                inferred_mode="generic",
+                hard_filters={"orientation": "null", "has_human": "null"},
+                negative_constraints={"exclude_people": False, "exclude_faces": False},
+                soft_preferences={"lighting": ["warm"]},
+                understanding_notes=["stub structured output"],
+            )
+        )
+
+
 def test_understanding_chain_returns_structured_understanding_result() -> None:
     chain = RetrievalUnderstandingChain(FakeChatModel())
 
@@ -25,3 +40,17 @@ def test_understanding_chain_returns_structured_understanding_result() -> None:
 
     assert result.inferred_mode == "wallpaper"
     assert result.hard_filters.has_human is False
+
+
+def test_understanding_chain_coerces_null_strings_in_hard_filters() -> None:
+    chain = RetrievalUnderstandingChain(NullStringChatModel())
+
+    result = chain.invoke(
+        {
+            "query": "A cozy cafe interior with warm lighting and people reading.",
+            "mode": "auto",
+        }
+    )
+
+    assert result.hard_filters.orientation is None
+    assert result.hard_filters.has_human is None

@@ -1,11 +1,46 @@
 from datetime import datetime
 
-from sqlalchemy import func, select, text, update
+from sqlalchemy import func, literal_column, select, text, update
 from sqlalchemy.engine import Row
 
 from backend.models.photo_index import PhotoIndexOrmModel
 from backend.repositories.records import PhotoIndexRecord, PhotoRetrievalCandidate
 from backend.repositories.write_models import PhotoIndexWriteModel
+
+
+def _build_weighted_tsvector(model) -> object:
+    # PostgreSQL `setweight` expects the weight as a SQL "char" literal. If we
+    # bind "A"/"B"/"C" as VARCHAR parameters, Postgres raises UndefinedFunction.
+    return (
+        func.setweight(
+            func.to_tsvector("english", func.coalesce(model.search_text, "")),
+            literal_column("'A'"),
+        ).op("||")(
+            func.setweight(
+                func.to_tsvector(
+                    "english",
+                    func.coalesce(model.retrieval_caption_text, ""),
+                ),
+                literal_column("'A'"),
+            )
+        ).op("||")(
+            func.setweight(
+                func.to_tsvector(
+                    "english",
+                    func.coalesce(model.retrieval_tag_text, ""),
+                ),
+                literal_column("'B'"),
+            )
+        ).op("||")(
+            func.setweight(
+                func.to_tsvector(
+                    "english",
+                    func.coalesce(model.retrieval_document_text, ""),
+                ),
+                literal_column("'C'"),
+            )
+        )
+    )
 
 
 class PhotoIndexRepository:
@@ -157,36 +192,7 @@ class PhotoIndexRepository:
         if not terms:
             return []
 
-        tsvector = (
-            func.setweight(
-                func.to_tsvector("english", func.coalesce(PhotoIndexOrmModel.search_text, "")),
-                "A",
-            ).op("||")(
-                func.setweight(
-                    func.to_tsvector(
-                        "english",
-                        func.coalesce(PhotoIndexOrmModel.retrieval_caption_text, ""),
-                    ),
-                    "A",
-                )
-            ).op("||")(
-                func.setweight(
-                    func.to_tsvector(
-                        "english",
-                        func.coalesce(PhotoIndexOrmModel.retrieval_tag_text, ""),
-                    ),
-                    "B",
-                )
-            ).op("||")(
-                func.setweight(
-                    func.to_tsvector(
-                        "english",
-                        func.coalesce(PhotoIndexOrmModel.retrieval_document_text, ""),
-                    ),
-                    "C",
-                )
-            )
-        )
+        tsvector = _build_weighted_tsvector(PhotoIndexOrmModel)
         tsquery = func.websearch_to_tsquery("english", " OR ".join(terms))
 
         rank_expr = func.ts_rank(tsvector, tsquery, 32)  # 32 = normalize by doc length

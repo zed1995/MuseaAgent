@@ -10,7 +10,9 @@ from backend.llm.chains.retrieval_understanding_chain import RetrievalUnderstand
 from backend.services.retrieval.contracts import RetrievalFilters
 from backend.services.retrieval_preparation.contracts import (
     HardFilters,
+    NegativeConstraints,
     QueryUnderstandingResult,
+    SoftPreferences,
 )
 
 logger = logging.getLogger(__name__)
@@ -45,7 +47,8 @@ class QueryUnderstandingService:
             result = self._chain.invoke({"query": query, "mode": mode})
             return self._merge_explicit_filters(result, explicit_filters)
         if self._model_client is None:
-            raise RuntimeError("model-backed understanding is required")
+            result = self._understand_deterministically(query, mode)
+            return self._merge_explicit_filters(result, explicit_filters)
         result = self._understand_with_model(query, mode)
         return self._merge_explicit_filters(result, explicit_filters)
 
@@ -112,4 +115,52 @@ class QueryUnderstandingService:
                 "hard_filters": HardFilters(orientation=orientation, has_human=has_human),
                 "understanding_notes": notes,
             }
+        )
+
+    def _understand_deterministically(self, query: str, mode: str) -> QueryUnderstandingResult:
+        lower = query.lower()
+
+        if mode != "auto":
+            inferred_mode = mode
+        elif "壁纸" in query or "wallpaper" in lower:
+            inferred_mode = "wallpaper"
+        elif "参考" in query or "reference" in lower:
+            inferred_mode = "reference"
+        else:
+            inferred_mode = "generic"
+
+        has_human = None
+        exclude_people = False
+        if any(token in query for token in ["不要人物", "无人", "没有人物"]) or "no people" in lower:
+            has_human = False
+            exclude_people = True
+
+        orientation = None
+        if any(token in query for token in ["手机壁纸", "竖屏"]) or "portrait" in lower:
+            orientation = "portrait"
+
+        colors: list[str] = []
+        if "深色" in query or "dark" in lower:
+            colors.append("dark")
+
+        moods: list[str] = []
+        if "安静" in query or "calm" in lower:
+            moods.append("calm")
+
+        qualities: list[str] = []
+        if "oled" in lower:
+            qualities.append("oled")
+
+        return QueryUnderstandingResult(
+            raw_query=query,
+            detected_language="zh" if any("\u4e00" <= char <= "\u9fff" for char in query) else "en",
+            inferred_mode=inferred_mode,
+            hard_filters=HardFilters(orientation=orientation, has_human=has_human),
+            negative_constraints=NegativeConstraints(exclude_people=exclude_people),
+            soft_preferences=SoftPreferences(
+                moods=moods,
+                colors=colors,
+                qualities=qualities,
+            ),
+            understanding_notes=["understanding fallback used"],
         )

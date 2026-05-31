@@ -7,6 +7,13 @@ class HardFilters(BaseModel):
     orientation: Literal["portrait", "landscape", "squarish"] | None = None
     has_human: bool | None = None
 
+    @field_validator("orientation", "has_human", mode="before")
+    @classmethod
+    def _coerce_null_strings(cls, value):
+        if isinstance(value, str) and value.strip().lower() in {"", "null", "none"}:
+            return None
+        return value
+
 
 class NegativeConstraints(BaseModel):
     exclude_people: bool = False

@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>MuseaAgent Debug Chat</title>
+    <link rel="stylesheet" href="/debug-assets/debug_chat.css" />
+  </head>
+  <body>
+    <div class="layout">
+      <aside class="sidebar">
+        <div class="sidebar-header">
+          <h1>MuseaAgent Debug Chat</h1>
+          <button id="new-conversation-button" type="button">New Conversation</button>
+        </div>
+        <div id="conversation-list" class="conversation-list"></div>
+      </aside>
+
+      <main class="chat-panel">
+        <div id="chat-header" class="chat-header">No conversation selected</div>
+        <div id="request-status" class="request-status" aria-live="polite">Loading messages...</div>
+        <div id="message-list" class="message-list">
+          <div class="empty-state">
+            <strong>No messages in this conversation yet.</strong>
+            <div>Send one below to test the next turn.</div>
+          </div>
+        </div>
+        <form id="composer" class="composer">
+          <textarea
+            id="composer-input"
+            placeholder="Type a message to test multi-turn search..."
+            rows="3"
+          ></textarea>
+          <div class="composer-actions">
+            <select id="mode-select">
+              <option value="auto">auto</option>
+              <option value="wallpaper">wallpaper</option>
+              <option value="reference">reference</option>
+              <option value="photographer">photographer</option>
+            </select>
+            <button id="send-button" type="submit">Send</button>
+          </div>
+        </form>
+      </main>
+
+      <aside class="debug-panel">
+        <h2>Turn Debug</h2>
+        <pre id="debug-output">No turn selected yet.</pre>
+      </aside>
+    </div>
+
+    <script src="/debug-assets/debug_chat.js"></script>
+  </body>
+  </html>
