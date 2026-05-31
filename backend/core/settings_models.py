@@ -22,6 +22,13 @@ class RetrievalPreparationSettings(BaseModel):
     use_model_rewrite: bool = True
 
 
+class AgentWorkflowSettings(BaseModel):
+    enabled: bool = True
+    max_retry_count: int = 1
+    min_acceptable_results: int = 6
+    hard_constraint_min_match_ratio: float = 0.85
+
+
 class IndexingSettings(BaseModel):
     # Mock flags — when True, use stub implementations (no real API calls)
     mock_translation: bool = True

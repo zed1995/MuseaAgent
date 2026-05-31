@@ -34,3 +34,18 @@ class RetrievalTrace(BaseModel):
     representation_bundle_used: bool = False
     fts_document_version: str = ""
     rerank_features_used: list[str] = []
+
+
+class AgentSearchDebugSummary(BaseModel):
+    mode: str
+    topic_action: str | None = None
+    search_spec_ids: list[str] = []
+    critic_reason_code: str | None = None
+    retry_count: int = 0
+
+
+class AgentSearchResponse(BaseModel):
+    request_id: str
+    final_items: list[dict]
+    response_reason: str | None = None
+    debug: AgentSearchDebugSummary | None = None
